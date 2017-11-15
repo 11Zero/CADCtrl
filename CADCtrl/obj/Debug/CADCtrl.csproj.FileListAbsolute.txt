@@ -10,3 +10,15 @@ D:\C++公用文件夹\My Projects_VS2010\CADCtrl\CADCtrl\bin\Debug\SharpGL.Scene
 D:\C++公用文件夹\My Projects_VS2010\CADCtrl\CADCtrl\bin\Debug\SharpGL.WPF.dll
 D:\C++公用文件夹\My Projects_VS2010\CADCtrl\CADCtrl\obj\Debug\CADCtrl.dll
 D:\C++公用文件夹\My Projects_VS2010\CADCtrl\CADCtrl\obj\Debug\CADCtrl.pdb
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\bin\Debug\CADCtrl.dll
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\bin\Debug\CADCtrl.pdb
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\bin\Debug\SharpGL.dll
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\bin\Debug\SharpGL.SceneGraph.dll
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\bin\Debug\SharpGL.WPF.dll
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl.csprojResolveAssemblyReference.cache
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADView.baml
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADView.g.cs
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl_MarkupCompile.cache
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl.g.resources
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl.dll
+D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl.pdb

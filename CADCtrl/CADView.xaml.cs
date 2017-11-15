@@ -57,6 +57,8 @@ namespace CADCtrl
         public bool key_down_move;
         public bool key_down_del;
 
+        private bool cross_mouse_view = true;
+
         public int isRebar = 0;
         public CADView()
         {
@@ -135,10 +137,16 @@ namespace CADCtrl
                     m_center_offset.X = -(m_border.m_xe - m_border.m_xs) / 2 * m_pixaxis * m_scale;
                     m_center_offset.Y = -(m_border.m_ye - m_border.m_ys) / 2 * m_pixaxis * m_scale;
                 }
-                else if (e.ClickCount == 1)
+                else
                 {
-                    MidMouseDownStart = e.GetPosition(e.Source as FrameworkElement);
-                    this.Cursor = Cursors.SizeAll;
+                    if (e.ClickCount == 1)
+                    {
+                        MidMouseDownStart = e.GetPosition(e.Source as FrameworkElement);
+                        this.Cursor = Cursors.SizeAll;
+                        this.cross_mouse_view = false;
+                    }
+                    else
+                        this.cross_mouse_view = true;
                 }
             }
             if (e.LeftButton == MouseButtonState.Pressed)
@@ -347,13 +355,16 @@ namespace CADCtrl
         private void OpenGLControl_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (e.MiddleButton == MouseButtonState.Released)
-                this.Cursor = Cursors.Arrow;
+            {
+                this.cross_mouse_view = true;
+                //this.Cursor = Cursors.Arrow;
+            }
         }
 
         private void OpenGLControl_MouseMove(object sender, MouseEventArgs e)
         {
             if (e.MiddleButton == MouseButtonState.Released)
-                this.Cursor = Cursors.Arrow;
+                this.Cursor = Cursors.None;
             if (e.MiddleButton == MouseButtonState.Pressed)
             {
                 MidMouseDownEnd = e.GetPosition(e.Source as FrameworkElement);
@@ -413,6 +424,10 @@ namespace CADCtrl
                 m_center_offset.X = m_center_offset.X + vDistance.X;
                 m_center_offset.Y = m_center_offset.Y + vDistance.Y;
             }
+
+            m_currentpos.Y = this.Height / 2 - e.GetPosition(e.Source as FrameworkElement).Y - m_center_offset.Y;
+            m_currentpos.X = -this.Width / 2 + e.GetPosition(e.Source as FrameworkElement).X - m_center_offset.X;
+        
         }
 
 
@@ -427,6 +442,10 @@ namespace CADCtrl
             m_openGLCtrl.Scale(m_scale, m_scale, 0);
 
             this.DrawGrids();
+
+            if (cross_mouse_view)
+                this.DrawMouseLine();
+
             if (SelLines.Count > 0)
             {
                 foreach (int value in this.SelLines.Keys)
@@ -1312,6 +1331,40 @@ namespace CADCtrl
                 font_size = 8.0f;
             m_openGLCtrl.DrawText((int)(pos.X), (int)(pos.Y), 0.5f, 1.0f, 0.5f, "Lucida Console", font_size, text);
         }
+
+
+        private void DrawMouseLine()
+        {
+            //UserDrawLine(new Point(0,0),new Point(1000,1000));
+            m_openGLCtrl.LineWidth(1);
+            m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Lines);
+            m_openGLCtrl.Color(1.0f, 1.0f, 1.0f);
+            //m_openGLCtrl.Vertex(0, 0);
+            //m_openGLCtrl.Vertex(1000, -1000);
+            int line_len = 50;
+            int rect_len = 5;
+            m_openGLCtrl.Vertex(m_currentpos.X / m_scale / m_pixaxis, (m_currentpos.Y - line_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex(m_currentpos.X / m_scale / m_pixaxis, (m_currentpos.Y + line_len) / m_scale / m_pixaxis);
+
+            m_openGLCtrl.Vertex((m_currentpos.X - line_len) / m_scale / m_pixaxis, m_currentpos.Y / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X + line_len) / m_scale / m_pixaxis, m_currentpos.Y / m_scale / m_pixaxis);
+
+            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / m_scale / m_pixaxis, (m_currentpos.Y - rect_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / m_scale / m_pixaxis, (m_currentpos.Y + rect_len) / m_scale / m_pixaxis);
+
+            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / m_scale / m_pixaxis, (m_currentpos.Y + rect_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / m_scale / m_pixaxis, (m_currentpos.Y + rect_len) / m_scale / m_pixaxis);
+
+            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / m_scale / m_pixaxis, (m_currentpos.Y + rect_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / m_scale / m_pixaxis, (m_currentpos.Y - rect_len) / m_scale / m_pixaxis);
+
+            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / m_scale / m_pixaxis, (m_currentpos.Y - rect_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / m_scale / m_pixaxis, (m_currentpos.Y - rect_len) / m_scale / m_pixaxis);
+
+            m_openGLCtrl.End();
+            m_openGLCtrl.Flush();
+        }
+
 
         private void DrawGrids()
         {
