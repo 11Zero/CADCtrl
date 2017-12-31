@@ -22,3 +22,5 @@ D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl_
 D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl.g.resources
 D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl.dll
 D:\C++公用文件夹\My Projects_VS2010\temp\CADCtrl\CADCtrl\obj\Debug\CADCtrl.pdb
+D:\C++公用文件夹\My Projects_VS2010\CADCtrl\CADCtrl\bin\Debug\log4net.dll
+D:\C++公用文件夹\My Projects_VS2010\CADCtrl\CADCtrl\bin\Debug\CADCtrl.dll.config

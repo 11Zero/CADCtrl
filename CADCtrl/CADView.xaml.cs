@@ -14,6 +14,7 @@ using System.Windows.Shapes;
 using SharpGL;
 using SharpGL.SceneGraph;
 using System.Collections.ObjectModel;
+using log4net;
 
 namespace CADCtrl
 {
@@ -22,10 +23,15 @@ namespace CADCtrl
     /// </summary>
     public partial class CADView : UserControl
     {
+        public static readonly ILog log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         private Point m_center_offset;
         private double m_distance;
         public double m_scale;
+        public double m_rotate_x_degree;
+        public double m_rotate_y_degree;
+        public double m_rotate_z_degree;
+
         private OpenGL m_openGLCtrl;
         private double m_pixaxis;//像素对应平移的倍数
         private double m_gridstep;//栅格间距，像素为单位
@@ -48,6 +54,7 @@ namespace CADCtrl
         Dictionary<int, CADRGB> AllColors = new Dictionary<int, CADRGB>();
         Dictionary<int, int> AllLinesColor = new Dictionary<int, int>();
         Dictionary<int, int> AllRectsColor = new Dictionary<int, int>();
+        Dictionary<int, int> AllCubesColor = new Dictionary<int, int>();
         Point MidMouseDownStart = new Point(0, 0);
         Point MidMouseDownEnd = new Point(0, 0);
         Point m_currentpos = new Point(0, 0);
@@ -59,6 +66,17 @@ namespace CADCtrl
         public bool key_down_copy;
         public bool key_down_move;
         public bool key_down_del;
+        public bool key_down_shift;
+
+        CADPoint zero = null;
+        CADPoint ax_p = null;
+        CADPoint ay_p = null;
+        CADPoint az_p = null;
+        CADPoint ax_n = null;
+        CADPoint ay_n = null;
+        CADPoint az_n = null;
+
+
 
         private bool cross_mouse_view = true;
         private CADLine tempLine = new CADLine();
@@ -72,7 +90,8 @@ namespace CADCtrl
         {
             InitializeComponent();
             m_openGLCtrl = openGLCtrl.OpenGL;
-
+            log4net.Config.XmlConfigurator.Configure();
+            log.Info("dll start up");
         }
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
@@ -102,6 +121,19 @@ namespace CADCtrl
             key_down_copy = false;
             key_down_move = false;
             key_down_del = false;
+            key_down_shift = false;
+
+            zero = new CADPoint(0, 0, 0);
+            ax_p = new CADPoint(1, 0, 0);
+            ay_p = new CADPoint(0, 1, 0);
+            az_p = new CADPoint(0, 0, 1);
+            ax_n = new CADPoint(-1, 0, 0);
+            ay_n = new CADPoint(0, -1, 0);
+            az_n = new CADPoint(0, 0, -1);
+
+            m_rotate_x_degree = 0;
+            m_rotate_y_degree = 0;
+            m_rotate_z_degree = 0;
         }
 
 
@@ -118,12 +150,32 @@ namespace CADCtrl
 
         private void OpenGLControl_OpenGLInitialized(object sender, OpenGLEventArgs args)
         {
-            m_openGLCtrl.Enable(OpenGL.GL_DEPTH_TEST);
+            ///定义材质属性值
+            //float[] no_mat = new float[] { 0.0f, 0.0f, 0.0f, 1.0f };        // 无材质颜色
+            //float[] mat_ambient = new float[] { 0.7f, 0.7f, 0.7f, 1.0f };   // 环境颜色
+            //float[] mat_ambient_color = new float[] { 0.8f, 0.6f, 0.2f, 1.0f };
+            //float[] mat_diffuse = new float[] { 0.2f, 0.5f, 0.8f, 1.0f };   // 散射颜色
+            //float[] mat_specular = new float[] { 1.0f, 1.0f, 1.0f, 1.0f };  // 镜面反射颜色
+            //float[] no_shininess = new float[] { 0.0f };                    // 镜面反射指数为0
+            //float[] low_shininess = new float[] { 5.0f };                   // 镜面反射指数为5.0
+            //float[] high_shininess = new float[] { 100.0f };                // 镜面反射指数为100.0
+            //float[] mat_emission = new float[] { 0.3f, 0.2f, 0.3f, 0.0f };  // 发射光颜色
+
+            //m_openGLCtrl.PushMatrix();
+            //m_openGLCtrl.Translate(1f, 1.5f, -7.0f);
+            //m_openGLCtrl.Material(OpenGL.GL_FRONT, OpenGL.GL_AMBIENT, no_mat);
+            //m_openGLCtrl.Material(OpenGL.GL_FRONT, OpenGL.GL_DIFFUSE, mat_diffuse);
+            //m_openGLCtrl.Material(OpenGL.GL_FRONT, OpenGL.GL_SPECULAR, mat_specular);
+            //m_openGLCtrl.Material(OpenGL.GL_FRONT, OpenGL.GL_SHININESS, low_shininess);
+            //m_openGLCtrl.Material(OpenGL.GL_FRONT, OpenGL.GL_EMISSION, no_mat);
+            //m_openGLCtrl.PopMatrix();
+            //m_openGLCtrl.Enable(OpenGL.GL_DEPTH_TEST);
+            
         }
 
         private void OpenGLControl_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.MiddleButton == MouseButtonState.Pressed)
+            if (e.MiddleButton == MouseButtonState.Pressed && key_down_shift == false)
             {
                 if (e.ClickCount == 2)
                 {
@@ -158,7 +210,13 @@ namespace CADCtrl
                         this.cross_mouse_view = true;
                 }
             }
-            if (e.LeftButton == MouseButtonState.Pressed)
+
+            if (e.MiddleButton == MouseButtonState.Pressed && key_down_shift == true)
+            {
+                MidMouseDownStart = e.GetPosition(e.Source as FrameworkElement);
+                this.Cursor = Cursors.ScrollNS;
+            }
+                if (e.LeftButton == MouseButtonState.Pressed)
             {
                 if (b_draw_line && clicked_count == 1)
                 {
@@ -381,13 +439,36 @@ namespace CADCtrl
         {
             if (e.MiddleButton == MouseButtonState.Released)
                 this.Cursor = Cursors.None;
-            if (e.MiddleButton == MouseButtonState.Pressed)
+            if (e.MiddleButton == MouseButtonState.Pressed && key_down_shift == false)
             {
                 MidMouseDownEnd = e.GetPosition(e.Source as FrameworkElement);
                 Vector vDistance = MidMouseDownEnd - MidMouseDownStart;
                 m_center_offset.X = m_center_offset.X + vDistance.X;
                 m_center_offset.Y = m_center_offset.Y - vDistance.Y;
                 MidMouseDownStart = MidMouseDownEnd;
+            }
+
+            if (e.MiddleButton == MouseButtonState.Pressed && key_down_shift == true)
+            {
+                MidMouseDownEnd = e.GetPosition(e.Source as FrameworkElement);
+                
+                Vector vDistance = MidMouseDownEnd - MidMouseDownStart;
+                m_rotate_x_degree = m_rotate_x_degree + vDistance.X;
+                m_rotate_y_degree = m_rotate_y_degree + vDistance.Y;
+                if (m_rotate_x_degree >= 360)
+                    m_rotate_x_degree = m_rotate_x_degree - 360;
+                if (m_rotate_y_degree >= 360)
+                    m_rotate_y_degree = m_rotate_x_degree - 360;
+                if (m_rotate_x_degree <= -360)
+                    m_rotate_x_degree = m_rotate_x_degree + 360;
+                if (m_rotate_y_degree <= -360)
+                    m_rotate_y_degree = m_rotate_x_degree + 360;
+                //log.Info(string.Format("vDistance = [{0},{1}]", vDistance.X, vDistance.Y));
+                //this.DrawText(string.Format("shift down:%d,%d", vDistance.X, vDistance.Y), new Point(0, 15));
+                //m_center_offset.X = m_center_offset.X + vDistance.X;
+                //m_center_offset.Y = m_center_offset.Y - vDistance.Y;
+                MidMouseDownStart = MidMouseDownEnd;
+                
             }
 
             if (key_down_move || key_down_copy)
@@ -418,6 +499,7 @@ namespace CADCtrl
                 tempLine.m_xe = m_curaxispos.m_x;
                 tempLine.m_ye = m_curaxispos.m_y;
             }
+
         }
 
         private void OpenGLControl_MouseWheel(object sender, MouseWheelEventArgs e)
@@ -463,16 +545,61 @@ namespace CADCtrl
 
         private void RedrawAll()
         {
-
-
+            //m_openGLCtrl.Rotate(90, 0.0f, 1.0f, 0.0f);
+            m_openGLCtrl.Rotate(m_rotate_x_degree, 0.0f, 1.0f, 0.0f);
+            m_openGLCtrl.Rotate(m_rotate_y_degree, 1.0f, 0.0f, 0.0f);
+            //m_openGLCtrl.LookAt(0, 0, 20000* m_scale+100, 0, 0, 0*m_scale, 0,1,0);
+            //log.Info(string.Format("scale = {0}",m_scale));
             m_openGLCtrl.Translate(m_center_offset.X / m_pixaxis, m_center_offset.Y / m_pixaxis, m_distance);
 
-            m_openGLCtrl.Scale(m_scale, m_scale, 0);
+            m_openGLCtrl.Scale(m_scale, m_scale, m_scale);
+
+
+
+            //float[] light_position = new float[] { -900, 0, 0,0};
+            //float[] fLightDiffuse = new float[4] { 0.8f, 0.8f, 0.8f, 0.8f};// 漫射光参数
+            //float[] ambient = new float[] { 0.4f, 0.4f, 0.4f, 1.0f };
+            //float[] fLightSpecular = new float[4] { 1f, 1f, 1f, 1f }; //镜面反射
+
+            //m_openGLCtrl.Enable(OpenGL.GL_LIGHTING);//开启光照 
+            //m_openGLCtrl.Light(OpenGL.GL_LIGHT1, OpenGL.GL_DIFFUSE, fLightDiffuse);
+            //m_openGLCtrl.Enable(OpenGL.GL_LIGHT1);
+
+            //m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_AMBIENT, ambient);
+            //m_openGLCtrl.Enable(OpenGL.GL_LIGHT0);
+
+            //m_openGLCtrl.Light(OpenGL.GL_LIGHT1, OpenGL.GL_POSITION, light_position);
+
+            //m_openGLCtrl.Light(OpenGL.GL_LIGHT2, OpenGL.GL_SPECULAR, fLightSpecular);//漫射光源  
+            //m_openGLCtrl.Enable(OpenGL.GL_LIGHT2);
+
+
+
+
+
+            //float[] fLightPosition = new float[4] { 0.0f, 3.0f, 2.0f, 0.0f }; //5f, 8f, -8f, 1f };// 光源位置 
+            //float[] fLightAmbient = new float[4] { 1f, 1f, 1f, 1f };// 环境光参数 
+            //float[] fLightDiffuse = new float[4] { 1f, 1f, 1f, 1f };// 漫射光参数
+            //float[] fLightSpecular = new float[4] { 1f, 1f, 1f, 1f }; //镜面反射
+
+            //m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_AMBIENT, fLightAmbient);//环境光源 
+            //m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_DIFFUSE, fLightDiffuse);//漫射光源 
+            //m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_POSITION, fLightPosition);//光源位置 
+            ////m_openGLCtrl.ClearColor(0.0f, 0.2f, 0.2f, 0.0f);
+            ////m_openGLCtrl.ClearDepth(1f);
+            //m_openGLCtrl.DepthFunc(OpenGL.GL_LEQUAL);
+            //m_openGLCtrl.Enable(OpenGL.GL_DEPTH_TEST);
+            //m_openGLCtrl.ShadeModel(OpenGL.GL_SMOOTH);             
+            //m_openGLCtrl.Enable(OpenGL.GL_LIGHTING);//开启光照 
+            //m_openGLCtrl.Enable(OpenGL.GL_LIGHT0);
+            //m_openGLCtrl.Enable(OpenGL.GL_NORMALIZE);
+
+
 
             this.DrawGrids();
 
             if (cross_mouse_view)
-                this.DrawMouseLine();
+                this.DrawMouseLine(m_scale);
 
             if (b_draw_line)
                 this.DrawLine(tempLine);
@@ -510,6 +637,14 @@ namespace CADCtrl
                 }
             }
 
+            if (AllCubes.Count > 0)
+            {
+                foreach (int key in this.AllCubes.Keys)
+                {
+                    this.DrawCube(AllCubes[key], AllColors[AllCubesColor[key]]);
+                }
+            }
+
             if (AllPoints.Count > 0)
             {
                 foreach (int key in this.AllPoints.Keys)
@@ -529,22 +664,25 @@ namespace CADCtrl
             double real_scale = m_scale;
             if (isRebar == 1)
                 real_scale = m_scale / 3;
-            this.DrawLine(new CADLine(0, 0, 0.5 / real_scale, 0));
-            this.DrawLine(new CADLine(0.5 / real_scale, 0, 0.4 / real_scale, 0.05 / real_scale));
-            this.DrawLine(new CADLine(0.5 / real_scale, 0, 0.4 / real_scale, -0.05 / real_scale));
-            this.DrawLine(new CADLine(0.4 / real_scale, 0.05 / real_scale, 0.4 / real_scale, -0.05 / real_scale));
 
-            this.DrawLine(new CADLine(0.15 / real_scale, -0.1 / real_scale, 0.35 / real_scale, -0.3 / real_scale));
-            this.DrawLine(new CADLine(0.15 / real_scale, -0.3 / real_scale, 0.35 / real_scale, -0.1 / real_scale));
+            this.DrawCoord(m_scale);
 
-            this.DrawLine(new CADLine(0, 0, 0, 0.5 / real_scale));
-            this.DrawLine(new CADLine(0, 0.5 / real_scale, 0.05 / real_scale, 0.4 / real_scale));
-            this.DrawLine(new CADLine(0, 0.5 / real_scale, -0.05 / real_scale, 0.4 / real_scale));
-            this.DrawLine(new CADLine(0.05 / real_scale, 0.4 / real_scale, -0.05 / real_scale, 0.4 / real_scale));
+            //this.DrawLine(new CADLine(0, 0, 0.5 / real_scale, 0));
+            //this.DrawLine(new CADLine(0.5 / real_scale, 0, 0.4 / real_scale, 0.05 / real_scale));
+            //this.DrawLine(new CADLine(0.5 / real_scale, 0, 0.4 / real_scale, -0.05 / real_scale));
+            //this.DrawLine(new CADLine(0.4 / real_scale, 0.05 / real_scale, 0.4 / real_scale, -0.05 / real_scale));
 
-            this.DrawLine(new CADLine(-0.2 / real_scale, 0.25 / real_scale, -0.1 / real_scale, 0.35 / real_scale));
-            this.DrawLine(new CADLine(-0.2 / real_scale, 0.25 / real_scale, -0.3 / real_scale, 0.35 / real_scale));
-            this.DrawLine(new CADLine(-0.2 / real_scale, 0.25 / real_scale, -0.2 / real_scale, 0.1 / real_scale));
+            //this.DrawLine(new CADLine(0.15 / real_scale, -0.1 / real_scale, 0.35 / real_scale, -0.3 / real_scale));
+            //this.DrawLine(new CADLine(0.15 / real_scale, -0.3 / real_scale, 0.35 / real_scale, -0.1 / real_scale));
+
+            //this.DrawLine(new CADLine(0, 0, 0, 0.5 / real_scale));
+            //this.DrawLine(new CADLine(0, 0.5 / real_scale, 0.05 / real_scale, 0.4 / real_scale));
+            //this.DrawLine(new CADLine(0, 0.5 / real_scale, -0.05 / real_scale, 0.4 / real_scale));
+            //this.DrawLine(new CADLine(0.05 / real_scale, 0.4 / real_scale, -0.05 / real_scale, 0.4 / real_scale));
+
+            //this.DrawLine(new CADLine(-0.2 / real_scale, 0.25 / real_scale, -0.1 / real_scale, 0.35 / real_scale));
+            //this.DrawLine(new CADLine(-0.2 / real_scale, 0.25 / real_scale, -0.3 / real_scale, 0.35 / real_scale));
+            //this.DrawLine(new CADLine(-0.2 / real_scale, 0.25 / real_scale, -0.2 / real_scale, 0.1 / real_scale));
 
             string pos_str = string.Format("Point:[{2:0.00},{3:0.00}]   Position:[{0:0.00},{1:0.00}]", m_currentpos.X / m_scale / m_pixaxis, m_currentpos.Y / m_scale / m_pixaxis, m_cur_sel_point.m_x, m_cur_sel_point.m_y);
             if (isRebar == 1)
@@ -712,7 +850,7 @@ namespace CADCtrl
             }
         }
 
-        private bool AddCube(CADCube cube)
+        private bool AddCube(CADCube cube, int color_id = 0)
         {
             if (cube == null)
                 return false;
@@ -723,6 +861,10 @@ namespace CADCtrl
                 this_cube.m_id = CubeNumber;
             }
             int this_cube_id = this_cube.m_id;
+            if (!AllColors.ContainsKey(color_id))
+                color_id = 1;
+            if (!AllCubesColor.ContainsKey(this_cube_id))
+                AllCubesColor.Add(this_cube_id, color_id);
             if (this.AllCubes.ContainsKey(this_cube_id))
             {
                 AllCubes[this_cube_id] = this_cube.Copy();
@@ -1227,11 +1369,51 @@ namespace CADCtrl
                 m_openGLCtrl.Color(1.0f, 1.0f, 1.0f);
             else
                 m_openGLCtrl.Color(color.m_r, color.m_g, color.m_b);
-            m_openGLCtrl.Vertex(line.m_xs, line.m_ys);
-            m_openGLCtrl.Vertex(line.m_xe, line.m_ye);
+            m_openGLCtrl.Vertex(line.m_xs, line.m_ys, line.m_zs);
+            m_openGLCtrl.Vertex(line.m_xe, line.m_ye, line.m_ze);
             m_openGLCtrl.End();
             m_openGLCtrl.Flush();
         }
+
+        private void DrawCoord(double scale)
+        {
+            m_openGLCtrl.LineWidth(2);
+            m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Lines);
+
+            m_openGLCtrl.Color(1.0f, 0.0f, 0.0f);
+            m_openGLCtrl.Vertex(ax_p.m_x / scale, ax_p.m_y / scale, ax_p.m_z / scale);
+            m_openGLCtrl.Vertex( zero.m_x / scale, zero.m_y / scale, zero.m_z / scale);
+
+            m_openGLCtrl.Color(0.0f, 1.0f, 0.0f);
+            m_openGLCtrl.Vertex(ay_p.m_x / scale, ay_p.m_y / scale, ay_p.m_z / scale);
+            m_openGLCtrl.Vertex(zero.m_x / scale, zero.m_y / scale, zero.m_z / scale);
+
+            m_openGLCtrl.Color(0.0f, 0.0f, 1.0f);
+            m_openGLCtrl.Vertex(az_p.m_x / scale, az_p.m_y / scale, az_p.m_z / scale);
+            m_openGLCtrl.Vertex(zero.m_x / scale, zero.m_y / scale, zero.m_z / scale);
+
+            m_openGLCtrl.End();
+            m_openGLCtrl.Flush();
+
+            m_openGLCtrl.LineWidth(1);
+            m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Lines);
+
+            m_openGLCtrl.Color(0.0f, 1.0f, 1.0f);
+            m_openGLCtrl.Vertex(ax_p.m_x / 3 / scale, ax_p.m_y / 3 / scale, ax_p.m_z / 3 / scale);
+            m_openGLCtrl.Vertex(ay_p.m_x / 3 / scale, ay_p.m_y / 3 / scale, ay_p.m_z / 3 / scale);
+
+            m_openGLCtrl.Color(1.0f, 0.0f, 1.0f);
+            m_openGLCtrl.Vertex(ay_p.m_x / 3 / scale, ay_p.m_y / 3 / scale, ay_p.m_z / 3 / scale);
+            m_openGLCtrl.Vertex(az_p.m_x / 3 / scale, az_p.m_y / 3 / scale, az_p.m_z / 3 / scale);
+
+            m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
+            m_openGLCtrl.Vertex(az_p.m_x / 3 / scale, az_p.m_y / 3 / scale, az_p.m_z / 3 / scale);
+            m_openGLCtrl.Vertex(ax_p.m_x / 3 / scale, ax_p.m_y / 3 / scale, ax_p.m_z / 3 / scale);
+
+            m_openGLCtrl.End();
+            m_openGLCtrl.Flush();
+        }
+
 
         private void DrawPoint(CADPoint point, CADRGB color = null)
         {
@@ -1271,7 +1453,7 @@ namespace CADCtrl
                 }
                 else
                     m_openGLCtrl.Color(color.m_r, color.m_g, color.m_b);
-                m_openGLCtrl.Vertex(point.m_x, point.m_y);
+                m_openGLCtrl.Vertex(point.m_x, point.m_y, point.m_z);
                 m_openGLCtrl.End();
                 m_openGLCtrl.Flush();
             }
@@ -1283,8 +1465,8 @@ namespace CADCtrl
             m_openGLCtrl.LineWidth(1);
             m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Lines);
             m_openGLCtrl.Color(0.2f, 0.2f, 0.2f);
-            m_openGLCtrl.Vertex(line.m_xs, line.m_ys);
-            m_openGLCtrl.Vertex(line.m_xe, line.m_ye);
+            m_openGLCtrl.Vertex(line.m_xs, line.m_ys, line.m_zs);
+            m_openGLCtrl.Vertex(line.m_xe, line.m_ye, line.m_ze);
             m_openGLCtrl.End();
             m_openGLCtrl.Flush();
         }
@@ -1324,25 +1506,51 @@ namespace CADCtrl
         private void DrawCube(CADCube rect, CADRGB color = null)
         {
             //m_openGLCtrl.LineWidth(1);
-            //m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Lines);
-            //if (color == null)
-            //    m_openGLCtrl.Color(1.0f, 1.0f, 1.0f);
-            //else
-            //    m_openGLCtrl.Color(color.m_r, color.m_g, color.m_b);
-            //m_openGLCtrl.Vertex(rect.m_xs, rect.m_ys);
-            //m_openGLCtrl.Vertex(rect.m_xe, rect.m_ys);
+            m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
+            if (color == null)
+                m_openGLCtrl.Color(1.0f, 1.0f, 1.0f);
+            else
+                m_openGLCtrl.Color(color.m_r, color.m_g, color.m_b);
+            //m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
+            m_openGLCtrl.Vertex(rect.m_surfs[0].m_points[0].m_x, rect.m_surfs[0].m_points[0].m_y, rect.m_surfs[0].m_points[0].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[0].m_points[1].m_x, rect.m_surfs[0].m_points[1].m_y, rect.m_surfs[0].m_points[1].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[0].m_points[2].m_x, rect.m_surfs[0].m_points[2].m_y, rect.m_surfs[0].m_points[2].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[0].m_points[3].m_x, rect.m_surfs[0].m_points[3].m_y, rect.m_surfs[0].m_points[3].m_z);
 
-            //m_openGLCtrl.Vertex(rect.m_xe, rect.m_ys);
-            //m_openGLCtrl.Vertex(rect.m_xe, rect.m_ye);
+            //m_openGLCtrl.Color(1.0f, 0.0f, 1.0f);
+            m_openGLCtrl.Vertex(rect.m_surfs[1].m_points[0].m_x, rect.m_surfs[1].m_points[0].m_y, rect.m_surfs[1].m_points[0].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[1].m_points[1].m_x, rect.m_surfs[1].m_points[1].m_y, rect.m_surfs[1].m_points[1].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[1].m_points[2].m_x, rect.m_surfs[1].m_points[2].m_y, rect.m_surfs[1].m_points[2].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[1].m_points[3].m_x, rect.m_surfs[1].m_points[3].m_y, rect.m_surfs[1].m_points[3].m_z);
 
-            //m_openGLCtrl.Vertex(rect.m_xe, rect.m_ye);
-            //m_openGLCtrl.Vertex(rect.m_xs, rect.m_ye);
+            //m_openGLCtrl.Color(0.0f, 1.0f, 1.0f);
+            m_openGLCtrl.Vertex(rect.m_surfs[2].m_points[0].m_x, rect.m_surfs[2].m_points[0].m_y, rect.m_surfs[2].m_points[0].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[2].m_points[1].m_x, rect.m_surfs[2].m_points[1].m_y, rect.m_surfs[2].m_points[1].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[2].m_points[2].m_x, rect.m_surfs[2].m_points[2].m_y, rect.m_surfs[2].m_points[2].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[2].m_points[3].m_x, rect.m_surfs[2].m_points[3].m_y, rect.m_surfs[2].m_points[3].m_z);
 
-            //m_openGLCtrl.Vertex(rect.m_xs, rect.m_ye);
-            //m_openGLCtrl.Vertex(rect.m_xs, rect.m_ys);
+            //m_openGLCtrl.Color(0.0f, 0.0f, 1.0f);
+            m_openGLCtrl.Vertex(rect.m_surfs[3].m_points[0].m_x, rect.m_surfs[3].m_points[0].m_y, rect.m_surfs[3].m_points[0].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[3].m_points[1].m_x, rect.m_surfs[3].m_points[1].m_y, rect.m_surfs[3].m_points[1].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[3].m_points[2].m_x, rect.m_surfs[3].m_points[2].m_y, rect.m_surfs[3].m_points[2].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[3].m_points[3].m_x, rect.m_surfs[3].m_points[3].m_y, rect.m_surfs[3].m_points[3].m_z);
 
-            //m_openGLCtrl.End();
-            //m_openGLCtrl.Flush();
+            //m_openGLCtrl.Color(0.0f, 1.0f, 0.0f);
+            m_openGLCtrl.Vertex(rect.m_surfs[4].m_points[0].m_x, rect.m_surfs[4].m_points[0].m_y, rect.m_surfs[4].m_points[0].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[4].m_points[1].m_x, rect.m_surfs[4].m_points[1].m_y, rect.m_surfs[4].m_points[1].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[4].m_points[2].m_x, rect.m_surfs[4].m_points[2].m_y, rect.m_surfs[4].m_points[2].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[4].m_points[3].m_x, rect.m_surfs[4].m_points[3].m_y, rect.m_surfs[4].m_points[3].m_z);
+
+            //m_openGLCtrl.Color(0.0f, 1.0f, 0.5f);
+            m_openGLCtrl.Vertex(rect.m_surfs[5].m_points[0].m_x, rect.m_surfs[5].m_points[0].m_y, rect.m_surfs[5].m_points[0].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[5].m_points[1].m_x, rect.m_surfs[5].m_points[1].m_y, rect.m_surfs[5].m_points[1].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[5].m_points[2].m_x, rect.m_surfs[5].m_points[2].m_y, rect.m_surfs[5].m_points[2].m_z);
+            m_openGLCtrl.Vertex(rect.m_surfs[5].m_points[3].m_x, rect.m_surfs[5].m_points[3].m_y, rect.m_surfs[5].m_points[3].m_z);
+
+            log.Info(rect.m_surfs[5].m_points[3].m_x);
+
+            m_openGLCtrl.End();
+            m_openGLCtrl.Flush();
         }
 
         private void DrawSelLine(int line_id)
@@ -1429,7 +1637,7 @@ namespace CADCtrl
         }
 
 
-        private void DrawMouseLine()
+        private void DrawMouseLine(double scale)
         {
             //UserDrawLine(new Point(0,0),new Point(1000,1000));
             m_openGLCtrl.LineWidth(1);
@@ -1439,23 +1647,23 @@ namespace CADCtrl
             //m_openGLCtrl.Vertex(1000, -1000);
             int line_len = 50;
             int rect_len = 5;
-            m_openGLCtrl.Vertex(m_currentpos.X / m_scale / m_pixaxis, (m_currentpos.Y - line_len) / m_scale / m_pixaxis);
-            m_openGLCtrl.Vertex(m_currentpos.X / m_scale / m_pixaxis, (m_currentpos.Y + line_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex(m_currentpos.X / scale / m_pixaxis, (m_currentpos.Y - line_len) / scale / m_pixaxis,0);
+            m_openGLCtrl.Vertex(m_currentpos.X / scale / m_pixaxis, (m_currentpos.Y + line_len) / scale / m_pixaxis,0);
 
-            m_openGLCtrl.Vertex((m_currentpos.X - line_len) / m_scale / m_pixaxis, m_currentpos.Y / m_scale / m_pixaxis);
-            m_openGLCtrl.Vertex((m_currentpos.X + line_len) / m_scale / m_pixaxis, m_currentpos.Y / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X - line_len) / scale / m_pixaxis, m_currentpos.Y / scale / m_pixaxis,0);
+            m_openGLCtrl.Vertex((m_currentpos.X + line_len) / scale / m_pixaxis, m_currentpos.Y / scale / m_pixaxis,0);
 
-            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / m_scale / m_pixaxis, (m_currentpos.Y - rect_len) / m_scale / m_pixaxis);
-            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / m_scale / m_pixaxis, (m_currentpos.Y + rect_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / scale / m_pixaxis, (m_currentpos.Y - rect_len) / scale / m_pixaxis,0);
+            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / scale / m_pixaxis, (m_currentpos.Y + rect_len) / scale / m_pixaxis,0);
 
-            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / m_scale / m_pixaxis, (m_currentpos.Y + rect_len) / m_scale / m_pixaxis);
-            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / m_scale / m_pixaxis, (m_currentpos.Y + rect_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / scale / m_pixaxis, (m_currentpos.Y + rect_len) / scale / m_pixaxis,0);
+            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / scale / m_pixaxis, (m_currentpos.Y + rect_len) / scale / m_pixaxis,0);
 
-            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / m_scale / m_pixaxis, (m_currentpos.Y + rect_len) / m_scale / m_pixaxis);
-            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / m_scale / m_pixaxis, (m_currentpos.Y - rect_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / scale / m_pixaxis, (m_currentpos.Y + rect_len) / scale / m_pixaxis,0);
+            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / scale / m_pixaxis, (m_currentpos.Y - rect_len) / scale / m_pixaxis,0);
 
-            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / m_scale / m_pixaxis, (m_currentpos.Y - rect_len) / m_scale / m_pixaxis);
-            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / m_scale / m_pixaxis, (m_currentpos.Y - rect_len) / m_scale / m_pixaxis);
+            m_openGLCtrl.Vertex((m_currentpos.X + rect_len) / scale / m_pixaxis, (m_currentpos.Y - rect_len) / scale / m_pixaxis,0);
+            m_openGLCtrl.Vertex((m_currentpos.X - rect_len) / scale / m_pixaxis, (m_currentpos.Y - rect_len) / scale / m_pixaxis,0);
 
             m_openGLCtrl.End();
             m_openGLCtrl.Flush();
@@ -1607,6 +1815,127 @@ namespace CADCtrl
             }
 
             this.UpdateBorder();
+        }
+
+
+        private void DelCube(int cube_id)
+        {
+            if (this.AllCubes.ContainsKey(cube_id))
+            {
+                //    if (AllPointsInLines[cube_id].Count > 0)
+                //    {
+                //        foreach (int value in AllPointsInLines[line_id])
+                //        {
+                //            if (AllPoints.ContainsKey(value))
+                //                AllPoints.Remove(value);
+                //            if (SelPoints.ContainsKey(value))
+                //            {
+                //                SelPoints.Remove(value);
+                //                for (int i = 0; i < m_sel_point_list.Count; i++)
+                //                {
+                //                    if (m_sel_point_list[i].m_id == value)
+                //                    {
+                //                        m_sel_point_list.RemoveAt(i);
+                //                        break;
+                //                    }
+                //                }
+                //            }
+                //        }
+                //    }
+
+                //AllPointsInLines.Remove(cube_id);
+                AllCubes.Remove(cube_id);
+                AllCubesColor.Remove(cube_id);
+
+
+            }
+            //if (AllPointsInLines.Count > 0)
+            //{
+            //    foreach (int value in AllPointsInLines.Keys)
+            //    {
+
+            //        for (int i = 0; i < AllPointsInLines[value].Count; i++)
+            //        {
+            //            if (!AllPoints.ContainsKey(AllPointsInLines[value][i]))
+            //                AllPointsInLines[value].Remove(i);
+            //        }
+
+            //    }
+            //}
+            //if (AllPointsInRects.Count > 0)
+            //{
+            //    foreach (int value in AllPointsInRects.Keys)
+            //    {
+
+            //        for (int i = 0; i < AllPointsInRects[value].Count; i++)
+            //        {
+            //            if (!AllPoints.ContainsKey(AllPointsInRects[value][i]))
+            //                AllPointsInRects[value].RemoveAt(i);
+            //        }
+
+            //    }
+            //}
+            this.UpdateBorder();
+        }
+
+
+        public void Test(object obj = null)
+        {
+            //CADCube m_cube = (CADCube)obj;
+            if (obj == null)
+            {
+                CADCube m_cube = new CADCube();
+                m_cube.m_id = CubeNumber;
+                CubeNumber++;
+                CADPoint point1 = new CADPoint(100, 100, 100);
+                CADPoint point2 = new CADPoint(900, 100, 100);
+                CADPoint point3 = new CADPoint(900, 900, 100);
+                CADPoint point4 = new CADPoint(100, 900, 100);
+
+                CADPoint point5 = new CADPoint(100, 100, 900);
+                CADPoint point6 = new CADPoint(900, 100, 900);
+                CADPoint point7 = new CADPoint(900, 900, 900);
+                CADPoint point8 = new CADPoint(100, 900, 900);
+
+                //if (m_cube.m_surfs[0] == null)
+                //{
+                //    MessageBox.Show("surfs");
+                //    return;
+                //}
+                m_cube.m_surfs[0].m_points[0] = point1.Copy();
+                m_cube.m_surfs[0].m_points[1] = point2.Copy();
+                m_cube.m_surfs[0].m_points[2] = point3.Copy();
+                m_cube.m_surfs[0].m_points[3] = point4.Copy();
+
+                m_cube.m_surfs[1].m_points[0] = point5.Copy();
+                m_cube.m_surfs[1].m_points[1] = point6.Copy();
+                m_cube.m_surfs[1].m_points[2] = point7.Copy();
+                m_cube.m_surfs[1].m_points[3] = point8.Copy();
+
+                m_cube.m_surfs[2].m_points[0] = point1.Copy();
+                m_cube.m_surfs[2].m_points[1] = point4.Copy();
+                m_cube.m_surfs[2].m_points[2] = point8.Copy();
+                m_cube.m_surfs[2].m_points[3] = point5.Copy();
+
+                m_cube.m_surfs[3].m_points[0] = point2.Copy();
+                m_cube.m_surfs[3].m_points[1] = point3.Copy();
+                m_cube.m_surfs[3].m_points[2] = point7.Copy();
+                m_cube.m_surfs[3].m_points[3] = point6.Copy();
+
+                m_cube.m_surfs[4].m_points[0] = point1.Copy();
+                m_cube.m_surfs[4].m_points[1] = point2.Copy();
+                m_cube.m_surfs[4].m_points[2] = point6.Copy();
+                m_cube.m_surfs[4].m_points[3] = point5.Copy();
+
+                m_cube.m_surfs[5].m_points[0] = point4.Copy();
+                m_cube.m_surfs[5].m_points[1] = point3.Copy();
+                m_cube.m_surfs[5].m_points[2] = point7.Copy();
+                m_cube.m_surfs[5].m_points[3] = point8.Copy();
+
+                this.UserDrawCube(m_cube);
+
+
+            }
         }
 
         private void DelRect(int rect_id)
@@ -2078,6 +2407,16 @@ namespace CADCtrl
             return;
         }
 
+        public void ShiftDwon()
+        {
+            this.key_down_shift = true;
+        }
+
+        public void ShiftUp()
+        {
+            this.key_down_shift = false;
+        }
+
         public void ReactToESC()
         {
             if (!key_down_move && !key_down_copy)
@@ -2140,6 +2479,7 @@ namespace CADCtrl
             if (e.Key == Key.M)
             {
                 key_down_move = true;
+                MessageBox.Show("M down");
                 return;
             }
             if (e.Key == Key.Delete)
@@ -2147,307 +2487,362 @@ namespace CADCtrl
                 key_down_del = true;
                 return;
             }
-
-        }
-
-    }
-
-
-    public class CADLine
-    {
-        public int m_id { get; set; }
-        public float m_xs { get; set; }
-        public float m_ys { get; set; }
-        public float m_xe { get; set; }
-        public float m_ye { get; set; }
-
-        public CADLine()
-        {
-            m_id = 0;
-            m_xs = 0.0f;
-            m_ys = 0.0f;
-            m_xe = 0.0f;
-            m_ye = 0.0f;
-        }
-
-        public CADLine(Point p1, Point p2)
-        {
-            m_id = 0;
-            m_xs = (float)p1.X;
-            m_ys = (float)p1.Y;
-            m_xe = (float)p2.X;
-            m_ye = (float)p2.Y;
-        }
-
-        public CADLine(double xs, double ys, double xe, double ye)
-        {
-            m_id = 0;
-            m_xs = (float)xs;
-            m_ys = (float)ys;
-            m_xe = (float)xe;
-            m_ye = (float)ye;
-        }
-        public CADLine Copy()
-        {
-            CADLine result = new CADLine(m_xs, m_ys, m_xe, m_ye);
-            result.m_id = m_id;
-            return result;
-        }
-
-        public static implicit operator CADRect(CADLine value)//implicit隐式转换，explicit显式转换
-        {
-            checked
+            if (e.Key == Key.LeftShift)
             {
-                if (value == null)
-                    return null;
-                CADRect result = new CADRect(value.m_xs, value.m_ys, value.m_xe, value.m_ye);
-                result.m_id = value.m_id;
+                key_down_shift = true;
+                MessageBox.Show("shift down");
+                return;
+            }
+        }
+
+        private void UserControl_PreviewKeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.LeftShift)
+            {
+                key_down_shift = false;
+                MessageBox.Show("shift up");
+            }
+        }
+
+
+        public class CADLine
+        {
+            public int m_id { get; set; }
+            public float m_xs { get; set; }
+            public float m_ys { get; set; }
+            public float m_xe { get; set; }
+            public float m_ye { get; set; }
+            public float m_zs { get; set; }
+            public float m_ze { get; set; }
+
+            public CADLine()
+            {
+                m_id = 0;
+                m_xs = 0.0f;
+                m_ys = 0.0f;
+                m_zs = 0.0f;
+                m_ze = 0.0f;
+                m_xe = 0.0f;
+                m_ye = 0.0f;
+            }
+
+            public CADLine(Point p1, Point p2)
+            {
+                m_id = 0;
+                m_xs = (float)p1.X;
+                m_ys = (float)p1.Y;
+                m_xe = (float)p2.X;
+                m_ye = (float)p2.Y;
+                m_zs = 0;
+                m_ze = 0;
+            }
+
+            public CADLine(double xs, double ys, double xe, double ye)
+            {
+                m_id = 0;
+                m_xs = (float)xs;
+                m_ys = (float)ys;
+                m_zs =0;
+                m_xe = (float)xe;
+                m_ye = (float)ye;
+                m_ze = 0;
+            }
+
+            public CADLine(double xs, double ys, double zs, double xe, double ye, double ze)
+            {
+                m_id = 0;
+                m_xs = (float)xs;
+                m_ys = (float)ys;
+                m_zs = (float)zs;
+                m_xe = (float)xe;
+                m_ye = (float)ye;
+                m_ze = (float)ze;
+            }
+
+            public CADLine(CADPoint p1,CADPoint p2)
+            {
+                m_id = 0;
+                m_xs = p1.m_x;
+                m_ys = p1.m_y;
+                m_zs = p1.m_z;
+                m_xe = p2.m_x;
+                m_ye = p2.m_y;
+                m_ze = p2.m_z;
+            }
+            public CADLine Copy()
+            {
+                CADLine result = new CADLine(m_xs, m_ys, m_zs, m_xe, m_ye, m_ze);
+                result.m_id = m_id;
+                return result;
+            }
+
+            public static implicit operator CADRect(CADLine value)//implicit隐式转换，explicit显式转换
+            {
+                checked
+                {
+                    if (value == null)
+                        return null;
+                    CADRect result = new CADRect(value.m_xs, value.m_ys, value.m_xe, value.m_ye);
+                    result.m_id = value.m_id;
+                    return result;
+                }
+            }
+        }
+
+        public class CADRect
+        {
+            public int m_id { get; set; }
+            public float m_xs { get; set; }
+            public float m_ys { get; set; }
+            public float m_xe { get; set; }
+            public float m_ye { get; set; }
+            public float m_len { get; set; }
+            public int m_flag { get; set; }//梁柱标志，0表示梁，1表示柱
+            public float m_width { get; set; }
+            public float m_height { get; set; }
+            public string m_rebar { get; set; }//钢筋布置索引，编号意味着对应1好钢筋图
+            public int m_concrete { get; set; }//混凝土等级索引，需要预定义好
+            public CADRect()
+            {
+
+                m_id = 0;
+                m_xs = 0.0f;
+                m_ys = 0.0f;
+                m_xe = 0.0f;
+                m_ye = 0.0f;
+                m_len = 0.0f;
+                m_flag = 1;
+                m_rebar = "";
+                m_concrete = 0;
+                m_width = Math.Abs(m_xs - m_xe);
+                m_height = Math.Abs(m_ys - m_ye);
+            }
+
+            public CADRect(Point p1, Point p2, int flag = 1)
+            {
+
+                m_id = 0;
+                m_xs = (float)p1.X;
+                m_ys = (float)p1.Y;
+                m_xe = (float)p2.X;
+                m_ye = (float)p2.Y;
+                m_len = 0.0f;
+                m_flag = flag;
+                m_rebar = "";
+                m_concrete = 0;
+                m_width = Math.Abs(m_xs - m_xe);
+                m_height = Math.Abs(m_ys - m_ye);
+            }
+
+            public CADRect(double xs, double ys, double xe, double ye, int flag = 1)
+            {
+
+                m_id = 0;
+                m_xs = (float)xs;
+                m_ys = (float)ys;
+                m_xe = (float)xe;
+                m_ye = (float)ye;
+                m_len = 0.0f;
+                m_flag = flag;
+                m_rebar = "";
+                m_concrete = 0;
+                m_width = Math.Abs(m_xs - m_xe);
+                m_height = Math.Abs(m_ys - m_ye);
+            }
+
+            public void UpdataWH()
+            {
+                m_width = Math.Abs(m_xs - m_xe);
+                m_height = Math.Abs(m_ys - m_ye);
+            }
+
+            public CADRect Copy()
+            {
+                CADRect result = new CADRect(m_xs, m_ys, m_xe, m_ye);
+                result.m_len = m_len;
+                result.m_id = m_id;
+                result.m_flag = m_flag;
+                result.m_rebar = m_rebar;
+                result.m_concrete = m_concrete;
+                return result;
+            }
+
+            public static implicit operator CADLine(CADRect value)//implicit隐式转换，explicit显式转换
+            {
+                checked
+                {
+                    if (value == null)
+                        return null;
+                    CADLine result = new CADLine(value.m_xs, value.m_ys, value.m_xe, value.m_ye);
+                    result.m_id = value.m_id;
+
+                    return result;
+                }
+            }
+
+        }
+
+
+
+
+        public class CADPoint
+        {
+            public int m_id { get; set; }
+            public float m_x { get; set; }
+            public float m_y { get; set; }
+            public float m_z { get; set; }
+            public int m_is_rebar { get; set; }
+            public int m_diameter { get; set; }
+            public int m_strength { get; set; }
+            public int m_count { get; set; }
+            public int m_style { get; set; }//0正常点，1辅助点
+            public CADPoint()
+            {
+                m_id = 0;
+                m_x = 0.0f;
+                m_y = 0.0f;
+                m_z = 0.0f;
+                m_is_rebar = 0;
+                m_diameter = -1;
+                m_strength = -1;
+                m_count = 0;
+                m_style = 0;
+
+            }
+
+
+            public CADPoint(double x, double y, double z = 0)
+            {
+                m_id = 0;
+                m_x = (float)x;
+                m_y = (float)y;
+                m_z = (float)z;
+                m_is_rebar = 0;
+                m_diameter = -1;
+                m_strength = -1;
+                m_count = 0;
+                m_style = 0;
+
+            }
+
+            public CADPoint Copy()
+            {
+                CADPoint result = new CADPoint(m_x, m_y, m_z);
+                result.m_id = m_id;
+                result.m_is_rebar = m_is_rebar;
+                result.m_diameter = m_diameter;
+                result.m_strength = m_strength;
+                result.m_count = m_count;
+                result.m_style = m_style;
+                return result;
+            }
+
+            public static CADPoint operator/(CADPoint src, double divide)
+            {
+                return new CADPoint(src.m_x/divide, src.m_y / divide, src.m_z / divide);
+            }
+
+            //public static CADLine operator -(CADPoint a, CADPoint b)
+            //{
+            //    return new CADLine(a,b);
+            //}
+        }
+
+
+        public class Rect3D
+        {
+            public int m_id = 0;
+            public CADPoint[] m_points = new CADPoint[4];
+            public Rect3D()
+            {
+
+            }
+            public Rect3D(CADPoint[] points)
+            {
+                int len = points.Length;
+                if (len != 4)
+                    return;
+                for (int i = 0; i < len; i++)
+                {
+                    m_points[i] = points[i].Copy();
+                }
+            }
+
+            public Rect3D(CADPoint point1, CADPoint point2, CADPoint point3, CADPoint point4)
+            {
+                m_points[0] = point1.Copy();
+                m_points[1] = point2.Copy();
+                m_points[2] = point3.Copy();
+                m_points[3] = point4.Copy();
+            }
+
+            public Rect3D Copy()
+            {
+                Rect3D result = new Rect3D(m_points);
+                result.m_id = m_id;
                 return result;
             }
         }
-    }
 
-    public class CADRect
-    {
-        public int m_id { get; set; }
-        public float m_xs { get; set; }
-        public float m_ys { get; set; }
-        public float m_xe { get; set; }
-        public float m_ye { get; set; }
-        public float m_len { get; set; }
-        public int m_flag { get; set; }//梁柱标志，0表示梁，1表示柱
-        public float m_width { get; set; }
-        public float m_height { get; set; }
-        public string m_rebar { get; set; }//钢筋布置索引，编号意味着对应1好钢筋图
-        public int m_concrete { get; set; }//混凝土等级索引，需要预定义好
-        public CADRect()
+        public class CADCube
         {
+            public Rect3D[] m_surfs = null;
+            public int m_id = 0;
 
-            m_id = 0;
-            m_xs = 0.0f;
-            m_ys = 0.0f;
-            m_xe = 0.0f;
-            m_ye = 0.0f;
-            m_len = 0.0f;
-            m_flag = 1;
-            m_rebar = "";
-            m_concrete = 0;
-            m_width = Math.Abs(m_xs - m_xe);
-            m_height = Math.Abs(m_ys - m_ye);
-        }
-
-        public CADRect(Point p1, Point p2, int flag = 1)
-        {
-
-            m_id = 0;
-            m_xs = (float)p1.X;
-            m_ys = (float)p1.Y;
-            m_xe = (float)p2.X;
-            m_ye = (float)p2.Y;
-            m_len = 0.0f;
-            m_flag = flag;
-            m_rebar = "";
-            m_concrete = 0;
-            m_width = Math.Abs(m_xs - m_xe);
-            m_height = Math.Abs(m_ys - m_ye);
-        }
-
-        public CADRect(double xs, double ys, double xe, double ye, int flag = 1)
-        {
-
-            m_id = 0;
-            m_xs = (float)xs;
-            m_ys = (float)ys;
-            m_xe = (float)xe;
-            m_ye = (float)ye;
-            m_len = 0.0f;
-            m_flag = flag;
-            m_rebar = "";
-            m_concrete = 0;
-            m_width = Math.Abs(m_xs - m_xe);
-            m_height = Math.Abs(m_ys - m_ye);
-        }
-
-        public void UpdataWH()
-        {
-            m_width = Math.Abs(m_xs - m_xe);
-            m_height = Math.Abs(m_ys - m_ye);
-        }
-
-        public CADRect Copy()
-        {
-            CADRect result = new CADRect(m_xs, m_ys, m_xe, m_ye);
-            result.m_len = m_len;
-            result.m_id = m_id;
-            result.m_flag = m_flag;
-            result.m_rebar = m_rebar;
-            result.m_concrete = m_concrete;
-            return result;
-        }
-
-        public static implicit operator CADLine(CADRect value)//implicit隐式转换，explicit显式转换
-        {
-            checked
+            public CADCube()
             {
-                if (value == null)
-                    return null;
-                CADLine result = new CADLine(value.m_xs, value.m_ys, value.m_xe, value.m_ye);
-                result.m_id = value.m_id;
+                m_surfs = new Rect3D[6];
+                for (int i = 0; i < 6; i++)
+                    m_surfs[i] = new Rect3D();
+            }
+            public CADCube(Rect3D[] surfs)
+            {
+                int len = surfs.Length;
+                if (len != 6)
+                    return;
+                for (int i = 0; i < len; i++)
+                    m_surfs[i] = surfs[i].Copy();
+            }
+            public CADCube(Rect3D surf1, Rect3D surf2, Rect3D surf3, Rect3D surf4, Rect3D surf5, Rect3D surf6)
+            {
+                m_surfs[0] = surf1.Copy();
+                m_surfs[1] = surf2.Copy();
+                m_surfs[2] = surf3.Copy();
+                m_surfs[3] = surf4.Copy();
+                m_surfs[4] = surf5.Copy();
+                m_surfs[5] = surf6.Copy();
 
+            }
+            public CADCube Copy()
+            {
+                CADCube result = new CADCube();
+                result.m_id = this.m_id;
+                result.m_surfs = this.m_surfs;
                 return result;
             }
         }
 
-    }
 
 
-
-
-    public class CADPoint
-    {
-        public int m_id { get; set; }
-        public float m_x { get; set; }
-        public float m_y { get; set; }
-        public float m_z { get; set; }
-        public int m_is_rebar { get; set; }
-        public int m_diameter { get; set; }
-        public int m_strength { get; set; }
-        public int m_count { get; set; }
-        public int m_style { get; set; }//0正常点，1辅助点
-        public CADPoint()
+        public class CADRGB
         {
-            m_id = 0;
-            m_x = 0.0f;
-            m_y = 0.0f;
-            m_z = 0.0f;
-            m_is_rebar = 0;
-            m_diameter = -1;
-            m_strength = -1;
-            m_count = 0;
-            m_style = 0;
-
-        }
-
-
-        public CADPoint(double x, double y, double z = 0)
-        {
-            m_id = 0;
-            m_x = (float)x;
-            m_y = (float)y;
-            m_z = (float)z;
-            m_is_rebar = 0;
-            m_diameter = -1;
-            m_strength = -1;
-            m_count = 0;
-            m_style = 0;
-
-        }
-
-        public CADPoint Copy()
-        {
-            CADPoint result = new CADPoint(m_x, m_y, m_z);
-            result.m_id = m_id;
-            result.m_is_rebar = m_is_rebar;
-            result.m_diameter = m_diameter;
-            result.m_strength = m_strength;
-            result.m_count = m_count;
-            result.m_style = m_style;
-            return result;
-        }
-    }
-
-
-    public class Rect3D
-    {
-        public int m_id = 0;
-        public CADPoint[] m_points = new CADPoint[4];
-        public Rect3D()
-        {
-
-        }
-        public Rect3D(CADPoint[] points)
-        {
-            int len = points.Length;
-            if (len != 4)
-                return;
-            for (int i = 0; i < len; i++)
+            public float m_r = 0.0f;
+            public float m_g = 0.0f;
+            public float m_b = 0.0f;
+            public CADRGB()
+            { }
+            public CADRGB(double r, double g, double b)
             {
-                m_points[i] = points[i].Copy();
+                m_r = (float)r;
+                m_g = (float)g;
+                m_b = (float)b;
             }
-        }
 
-        public Rect3D(CADPoint point1, CADPoint point2, CADPoint point3, CADPoint point4)
-        {
-            m_points[0] = point1.Copy();
-            m_points[1] = point2.Copy();
-            m_points[2] = point3.Copy();
-            m_points[3] = point4.Copy();
-        }
+            public CADRGB Copy()
+            {
 
-        public Rect3D Copy()
-        {
-            Rect3D result = new Rect3D(m_points);
-            result.m_id = m_id;
-            return result;
-        }
-    }
-
-    public class CADCube
-    {
-        public Rect3D[] m_surfs = new Rect3D[6];
-        public int m_id = 0;
-
-        public CADCube()
-        {
-
-        }
-        public CADCube(Rect3D[] surfs)
-        {
-            int len = surfs.Length;
-            if (len != 6)
-                return;
-            for (int i = 0; i < len; i++)
-                m_surfs[i] = surfs[i].Copy();
-        }
-        public CADCube(Rect3D surf1, Rect3D surf2, Rect3D surf3, Rect3D surf4, Rect3D surf5, Rect3D surf6)
-        {
-            m_surfs[0] = surf1.Copy();
-            m_surfs[1] = surf2.Copy();
-            m_surfs[2] = surf3.Copy();
-            m_surfs[3] = surf4.Copy();
-            m_surfs[4] = surf5.Copy();
-            m_surfs[5] = surf6.Copy();
-
-        }
-        public CADCube Copy()
-        {
-            CADCube result = new CADCube();
-            result.m_id = this.m_id;
-            result.m_surfs = this.m_surfs;
-            return result;
-        }
-    }
-
-
-
-    public class CADRGB
-    {
-        public float m_r = 0.0f;
-        public float m_g = 0.0f;
-        public float m_b = 0.0f;
-        public CADRGB()
-        { }
-        public CADRGB(double r, double g, double b)
-        {
-            m_r = (float)r;
-            m_g = (float)g;
-            m_b = (float)b;
-        }
-
-        public CADRGB Copy()
-        {
-
-            return new CADRGB(m_r, m_g, m_b);
+                return new CADRGB(m_r, m_g, m_b);
+            }
         }
     }
 }

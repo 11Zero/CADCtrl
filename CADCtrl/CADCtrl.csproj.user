@@ -2,6 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartAction>Program</StartAction>
-    <StartProgram>D:\C++公用文件夹\My Projects_VS2010\Ansys_builder\Ansys_builder\bin\Release\Ansys_builder.exe</StartProgram>
+    <StartProgram>D:\C++公用文件夹\My Projects_VS2010\Ansys_builder\Ansys_builder\bin\Debug\Ansys_builder.exe</StartProgram>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ProjectView>ShowAllFiles</ProjectView>
   </PropertyGroup>
 </Project>
