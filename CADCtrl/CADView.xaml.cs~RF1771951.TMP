@@ -40,8 +40,6 @@ namespace CADCtrl
         private int RectNumber;
         private int PointNumber;
         private int CubeNumber;
-        private int PrismNumber;
-
         private CADRect m_border;
         private double m_wheel_multi;//滚轮滚动一次放大的倍数
         Dictionary<int, CADLine> AllLines = new Dictionary<int, CADLine>();
@@ -50,8 +48,6 @@ namespace CADCtrl
         Dictionary<int, List<int>> AllPointsInRects = new Dictionary<int, List<int>>();
         Dictionary<int, CADPoint> AllPoints = new Dictionary<int, CADPoint>();
         Dictionary<int, CADCube> AllCubes = new Dictionary<int, CADCube>();
-        Dictionary<int, CADPrism> AllPrisms = new Dictionary<int, CADPrism>();
-        Dictionary<int, CADPrism> SelPrisms = new Dictionary<int, CADPrism>();
         Dictionary<int, CADCube> SelCubes = new Dictionary<int, CADCube>();
         Dictionary<int, CADPoint> SelPoints = new Dictionary<int, CADPoint>();
         Dictionary<int, CADLine> SelLines = new Dictionary<int, CADLine>();
@@ -60,14 +56,13 @@ namespace CADCtrl
         Dictionary<int, int> AllLinesColor = new Dictionary<int, int>();
         Dictionary<int, int> AllRectsColor = new Dictionary<int, int>();
         Dictionary<int, int> AllCubesColor = new Dictionary<int, int>();
-        Dictionary<int, int> AllPrismsColor = new Dictionary<int, int>();
         Point MidMouseDownStart = new Point(0, 0);
         Point MidMouseDownEnd = new Point(0, 0);
         Point m_currentpos = new Point(0, 0);
         CADPoint m_cur_sel_point = new CADPoint(0, 0);
         public ObservableCollection<CADRect> m_sel_rect_list = new ObservableCollection<CADRect>();
         public ObservableCollection<CADPoint> m_sel_point_list = new ObservableCollection<CADPoint>();
-
+        //public ObservableCollection<CADPoint> m_sel_rebar_list = new ObservableCollection<CADPoint>();
         public bool key_down_esc;
         public bool key_down_copy;
         public bool key_down_move;
@@ -105,7 +100,7 @@ namespace CADCtrl
             m_center_offset = new Point(0, 0);
             m_distance = -10;
             m_pixaxis = 0.1208;//与移动速度成反比
-            m_scale = 1;// 0.00002;
+            m_scale = 0.00002;
             if (isRebar == 1)
                 m_scale = 0.005;
             m_border = new CADRect(0, 0, 0, 0);
@@ -115,7 +110,6 @@ namespace CADCtrl
             RectNumber = 0;
             PointNumber = 1;
             CubeNumber = 0;
-            PrismNumber = 0;
             AllPoints[PointNumber] = new CADPoint();
             AllPoints[PointNumber].m_id = PointNumber;
             m_pixaxis = m_pixaxis * this.Height;//(this.Width < this.Height ? this.Width : this.Height);
@@ -157,29 +151,7 @@ namespace CADCtrl
 
         private void OpenGLControl_OpenGLInitialized(object sender, OpenGLEventArgs args)
         {
-            m_openGLCtrl.Enable(OpenGL.GL_DEPTH_TEST);
-            float[] global_ambient = new float[] { 0.0f, 0.8f, 0.8f, 1.0f };
-            float[] light0pos = new float[] { 100.0f, 100.0f, 100.0f, 1.0f };
-            float[] light0ambient = new float[] { 0.8f, 0.8f, 0.8f, 1.0f };
-            float[] light0diffuse = new float[] { 0.8f, 0.3f, 0.3f, 1.0f };
-            float[] light0specular = new float[] { 0.8f, 0.2f, 0.8f, 1.0f };
 
-            float[] lmodel_ambient = new float[] { 0.2f, 0.2f, 0.2f, 1.0f };
-            m_openGLCtrl.LightModel(OpenGL.GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
-
-            m_openGLCtrl.LightModel(OpenGL.GL_LIGHT_MODEL_AMBIENT, global_ambient);
-            m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_POSITION, light0pos);
-            //m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_AMBIENT, light0ambient);
-            m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_DIFFUSE, light0diffuse);
-            m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_SPECULAR, light0specular);
-            m_openGLCtrl.Enable(OpenGL.GL_LIGHTING);
-            m_openGLCtrl.Enable(OpenGL.GL_LIGHT0);
-            m_openGLCtrl.Enable(OpenGL.GL_NORMALIZE);
-
-            m_openGLCtrl.ShadeModel(OpenGL.GL_SMOOTH);
-
-            m_openGLCtrl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
-            m_openGLCtrl.LoadIdentity();
         }
 
         private void OpenGLControl_MouseDown(object sender, MouseButtonEventArgs e)
@@ -200,9 +172,9 @@ namespace CADCtrl
                     if (m_scale > 1000000)
                     {
                         if (isRebar == 0)
-                            m_scale = 1;// 0.00001;
+                            m_scale = 0.00001;
                         else
-                            m_scale = 1;// 0.005;
+                            m_scale = 0.005;
                     }
                     m_center_offset.X = -(m_border.m_xe + m_border.m_xs) / 2 * m_pixaxis * m_scale;
                     m_center_offset.Y = -(m_border.m_ye + m_border.m_ys) / 2 * m_pixaxis * m_scale;
@@ -534,9 +506,7 @@ namespace CADCtrl
             if (m_gridstep < 30)
                 m_gridstep = 50;
             if (m_scale <= 0.0000001)
-            { 
-                //m_scale = 0.0000001;
-            }
+                m_scale = 0.0000001;
             else
             {
                 m_center_offset.X = m_center_offset.X + vDistance.X;
@@ -557,30 +527,30 @@ namespace CADCtrl
         private void RedrawAll()
         {
             //m_openGLCtrl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
-            
-            //m_openGLCtrl.Enable(OpenGL.GL_DEPTH_TEST);
-            //float[] global_ambient = new float[] { 0.0f, 0.8f, 0.8f, 1.0f };
-            //float[] light0pos = new float[] { 100.0f, 100.0f, 100.0f, 1.0f };
-            //float[] light0ambient = new float[] { 0.2f, 0.2f, 0.8f, 1.0f };
-            //float[] light0diffuse = new float[] { 0.8f, 0.3f, 0.3f, 1.0f };
-            //float[] light0specular = new float[] { 0.8f, 0.2f, 0.8f, 1.0f };
 
-            //float[] lmodel_ambient = new float[] { 0.2f, 0.2f, 0.2f, 1.0f };
-            //m_openGLCtrl.LightModel(OpenGL.GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
+            m_openGLCtrl.Enable(OpenGL.GL_DEPTH_TEST);
+            float[] global_ambient = new float[] { 0.8f, 0.5f, 0.5f, 1.0f };
+            float[] light0pos = new float[] { 0.0f, 50.0f, 100.0f, 1.0f };
+            float[] light0ambient = new float[] { 0.2f, 0.2f, 0.2f, 1.0f };
+            float[] light0diffuse = new float[] { 0.3f, 0.3f, 0.3f, 1.0f };
+            float[] light0specular = new float[] { 0.8f, 0.8f, 0.8f, 1.0f };
 
-            //m_openGLCtrl.LightModel(OpenGL.GL_LIGHT_MODEL_AMBIENT, global_ambient);
-            //m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_POSITION, light0pos);
-            ////m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_AMBIENT, light0ambient);
-            //m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_DIFFUSE, light0diffuse);
-            //m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_SPECULAR, light0specular);
-            //m_openGLCtrl.Enable(OpenGL.GL_LIGHTING);
-            //m_openGLCtrl.Enable(OpenGL.GL_LIGHT0);
+            float[] lmodel_ambient = new float[] { 0.8f, 0.2f, 0.2f, 1.0f };
+            m_openGLCtrl.LightModel(OpenGL.GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
+            m_openGLCtrl.LightModel(OpenGL.GL_LIGHT_MODEL_AMBIENT, global_ambient);
+            m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_POSITION, light0pos);
+            m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_AMBIENT, light0ambient);
+            m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_DIFFUSE, light0diffuse);
+            m_openGLCtrl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_SPECULAR, light0specular);
+            m_openGLCtrl.Enable(OpenGL.GL_LIGHTING);
+            m_openGLCtrl.Enable(OpenGL.GL_LIGHT0);
 
-            //m_openGLCtrl.ShadeModel(OpenGL.GL_SMOOTH);
+            m_openGLCtrl.ShadeModel(OpenGL.GL_SMOOTH);
 
-            //m_openGLCtrl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
-            //m_openGLCtrl.LoadIdentity();
-
+            m_openGLCtrl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
+            m_openGLCtrl.LoadIdentity();
+            //m_openGLCtrl.Translate(0.0f, 0.0f, -6.0f);
+            //m_openGLCtrl.Rotate(10, 0.0f, 1.0f, 0.0f);
 
 
 
@@ -589,7 +559,7 @@ namespace CADCtrl
 
             m_openGLCtrl.Translate(m_center_offset.X / m_pixaxis, m_center_offset.Y / m_pixaxis, m_distance);
 
-            m_openGLCtrl.Scale(m_scale, m_scale, m_scale);
+            //m_openGLCtrl.Scale(m_scale, m_scale, m_scale);
 
 
 
@@ -685,15 +655,6 @@ namespace CADCtrl
                     this.DrawCube(AllCubes[key], AllColors[AllCubesColor[key]]);
                 }
             }
-
-            if (AllPrisms.Count > 0)
-            {
-                foreach (int key in this.AllPrisms.Keys)
-                {
-                    this.DrawPrism(AllPrisms[key], AllColors[AllPrismsColor[key]]);
-                }
-            }
-
 
             if (AllPoints.Count > 0)
             {
@@ -926,34 +887,6 @@ namespace CADCtrl
             }
             return true;
         }
-
-
-        private bool AddPrism(CADPrism prism, int color_id = 0)
-        {
-            if (prism == null)
-                return false;
-            CADPrism this_prism = prism.Copy();
-            if (this_prism.m_id == 0)
-            {
-                PrismNumber++;
-                this_prism.m_id = PrismNumber;
-            }
-            int this_prism_id = this_prism.m_id;
-            if (!AllColors.ContainsKey(color_id))
-                color_id = 1;
-            if (!AllPrismsColor.ContainsKey(this_prism_id))
-                AllPrismsColor.Add(this_prism_id, color_id);
-            if (this.AllPrisms.ContainsKey(this_prism_id))
-            {
-                AllPrisms[this_prism_id] = this_prism.Copy();
-            }
-            else
-            {
-                AllPrisms.Add(this_prism_id, this_prism.Copy());
-            }
-            return true;
-        }
-
 
         private bool AddRect(CADRect rect, int color_id = 0)
         {
@@ -1584,66 +1517,60 @@ namespace CADCtrl
 
         private void DrawCube(CADCube cube, CADRGB color = null)
         {
-            Teapot tp = new Teapot();
-            m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
-            tp.Draw(m_openGLCtrl, 4, 1, OpenGL.GL_FILL);
-
-            if (AllColors.ContainsKey(cube.color))
+            //m_openGLCtrl.LineWidth(1);
+            m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
+            //if (color == null)
+            //    m_openGLCtrl.Color(1.0f, 1.0f, 1.0f);
+            //else
+            //    m_openGLCtrl.Color(color.m_r, color.m_g, color.m_b);
+            //m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
+            if(AllColors.ContainsKey(cube.color))
                 m_openGLCtrl.Color(AllColors[cube.color].m_r, AllColors[cube.color].m_g, AllColors[cube.color].m_b);
             else
                 m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
+            m_openGLCtrl.Vertex(cube.m_surfs[0].m_points[0].m_x, cube.m_surfs[0].m_points[0].m_y, cube.m_surfs[0].m_points[0].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[0].m_points[1].m_x, cube.m_surfs[0].m_points[1].m_y, cube.m_surfs[0].m_points[1].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[0].m_points[2].m_x, cube.m_surfs[0].m_points[2].m_y, cube.m_surfs[0].m_points[2].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[0].m_points[3].m_x, cube.m_surfs[0].m_points[3].m_y, cube.m_surfs[0].m_points[3].m_z);
 
-            for (int i = 0; i < 6; i++)
-            {
-                m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
-                CADPoint nor = cube.m_surfs[i].m_center - cube.m_center;
-                m_openGLCtrl.Normal(nor.m_x, nor.m_y,nor.m_z);
-                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[0].m_x, cube.m_surfs[i].m_points[0].m_y, cube.m_surfs[i].m_points[0].m_z);
-                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[1].m_x, cube.m_surfs[i].m_points[1].m_y, cube.m_surfs[i].m_points[1].m_z);
-                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[2].m_x, cube.m_surfs[i].m_points[2].m_y, cube.m_surfs[i].m_points[2].m_z);
-                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[3].m_x, cube.m_surfs[i].m_points[3].m_y, cube.m_surfs[i].m_points[3].m_z);
-                m_openGLCtrl.End();
+            //m_openGLCtrl.Color(1.0f, 0.0f, 1.0f);
+            m_openGLCtrl.Vertex(cube.m_surfs[1].m_points[0].m_x, cube.m_surfs[1].m_points[0].m_y, cube.m_surfs[1].m_points[0].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[1].m_points[1].m_x, cube.m_surfs[1].m_points[1].m_y, cube.m_surfs[1].m_points[1].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[1].m_points[2].m_x, cube.m_surfs[1].m_points[2].m_y, cube.m_surfs[1].m_points[2].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[1].m_points[3].m_x, cube.m_surfs[1].m_points[3].m_y, cube.m_surfs[1].m_points[3].m_z);
 
-            }
+            //m_openGLCtrl.Color(0.0f, 1.0f, 1.0f);
+            m_openGLCtrl.Vertex(cube.m_surfs[2].m_points[0].m_x, cube.m_surfs[2].m_points[0].m_y, cube.m_surfs[2].m_points[0].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[2].m_points[1].m_x, cube.m_surfs[2].m_points[1].m_y, cube.m_surfs[2].m_points[1].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[2].m_points[2].m_x, cube.m_surfs[2].m_points[2].m_y, cube.m_surfs[2].m_points[2].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[2].m_points[3].m_x, cube.m_surfs[2].m_points[3].m_y, cube.m_surfs[2].m_points[3].m_z);
+
+            //m_openGLCtrl.Color(0.0f, 0.0f, 1.0f);
+            m_openGLCtrl.Vertex(cube.m_surfs[3].m_points[0].m_x, cube.m_surfs[3].m_points[0].m_y, cube.m_surfs[3].m_points[0].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[3].m_points[1].m_x, cube.m_surfs[3].m_points[1].m_y, cube.m_surfs[3].m_points[1].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[3].m_points[2].m_x, cube.m_surfs[3].m_points[2].m_y, cube.m_surfs[3].m_points[2].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[3].m_points[3].m_x, cube.m_surfs[3].m_points[3].m_y, cube.m_surfs[3].m_points[3].m_z);
+
+            //m_openGLCtrl.Color(0.0f, 1.0f, 0.0f);
+            m_openGLCtrl.Vertex(cube.m_surfs[4].m_points[0].m_x, cube.m_surfs[4].m_points[0].m_y, cube.m_surfs[4].m_points[0].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[4].m_points[1].m_x, cube.m_surfs[4].m_points[1].m_y, cube.m_surfs[4].m_points[1].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[4].m_points[2].m_x, cube.m_surfs[4].m_points[2].m_y, cube.m_surfs[4].m_points[2].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[4].m_points[3].m_x, cube.m_surfs[4].m_points[3].m_y, cube.m_surfs[4].m_points[3].m_z);
+
+            //m_openGLCtrl.Color(0.0f, 1.0f, 0.5f);
+            m_openGLCtrl.Vertex(cube.m_surfs[5].m_points[0].m_x, cube.m_surfs[5].m_points[0].m_y, cube.m_surfs[5].m_points[0].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[5].m_points[1].m_x, cube.m_surfs[5].m_points[1].m_y, cube.m_surfs[5].m_points[1].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[5].m_points[2].m_x, cube.m_surfs[5].m_points[2].m_y, cube.m_surfs[5].m_points[2].m_z);
+            m_openGLCtrl.Vertex(cube.m_surfs[5].m_points[3].m_x, cube.m_surfs[5].m_points[3].m_y, cube.m_surfs[5].m_points[3].m_z);
+
+            log.Info(cube.m_surfs[5].m_points[3].m_x);
+
+            m_openGLCtrl.End();
             m_openGLCtrl.Flush();
-        }
 
+            Teapot tp = new Teapot();
+            tp.Draw(m_openGLCtrl, 14, 1, OpenGL.GL_FILL);
 
-        private void DrawPrism(CADPrism prism, CADRGB color = null)
-        {
-            //Teapot tp = new Teapot();
-            //m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
-            //tp.Draw(m_openGLCtrl, 4, 1, OpenGL.GL_FILL);
-
-            if (AllColors.ContainsKey(prism.color))
-                m_openGLCtrl.Color(AllColors[prism.color].m_r, AllColors[prism.color].m_g, AllColors[prism.color].m_b);
-            else
-                m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
-            CADPoint nor = null;
-            for (int i = 0; i < 3; i++)
-            {
-                m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
-                nor = prism.m_surfs_rect[i].m_center - prism.m_center;
-                m_openGLCtrl.Normal(nor.m_x, nor.m_y, nor.m_z);
-                m_openGLCtrl.Vertex(prism.m_surfs_rect[i].m_points[0].m_x, prism.m_surfs_rect[i].m_points[0].m_y, prism.m_surfs_rect[i].m_points[0].m_z);
-                m_openGLCtrl.Vertex(prism.m_surfs_rect[i].m_points[1].m_x, prism.m_surfs_rect[i].m_points[1].m_y, prism.m_surfs_rect[i].m_points[1].m_z);
-                m_openGLCtrl.Vertex(prism.m_surfs_rect[i].m_points[2].m_x, prism.m_surfs_rect[i].m_points[2].m_y, prism.m_surfs_rect[i].m_points[2].m_z);
-                m_openGLCtrl.Vertex(prism.m_surfs_rect[i].m_points[3].m_x, prism.m_surfs_rect[i].m_points[3].m_y, prism.m_surfs_rect[i].m_points[3].m_z);
-
-                m_openGLCtrl.End();
-            }
-            for (int i = 0; i < 2; i++)
-            {
-                m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Triangles);
-                nor = prism.m_surfs_tri[i].m_center - prism.m_center;
-                m_openGLCtrl.Normal(nor.m_x, nor.m_y, nor.m_z);
-                m_openGLCtrl.Vertex(prism.m_surfs_tri[i].m_points[0].m_x, prism.m_surfs_tri[i].m_points[0].m_y, prism.m_surfs_tri[i].m_points[0].m_z);
-                m_openGLCtrl.Vertex(prism.m_surfs_tri[i].m_points[1].m_x, prism.m_surfs_tri[i].m_points[1].m_y, prism.m_surfs_tri[i].m_points[1].m_z);
-                m_openGLCtrl.Vertex(prism.m_surfs_tri[i].m_points[2].m_x, prism.m_surfs_tri[i].m_points[2].m_y, prism.m_surfs_tri[i].m_points[2].m_z);
-                m_openGLCtrl.End();
-            }
-
-            m_openGLCtrl.Flush();
         }
 
         private void DrawSelLine(int line_id)
@@ -1978,10 +1905,9 @@ namespace CADCtrl
             if (obj == null)
             {
                 CADCube m_cube = new CADCube();
-                //m_cube.m_id = CubeNumber;
-                //log.Info(string.Format("cube number = {0}", CubeNumber));
-                //CubeNumber++;
-                //m_cube.color = 2;
+                m_cube.m_id = CubeNumber;
+                CubeNumber++;
+                m_cube.color = 2;
                 CADPoint point1 = new CADPoint(1, 1, 1);
                 CADPoint point2 = new CADPoint(-1, 1, 1);
                 CADPoint point3 = new CADPoint(-1, -1, 1);
@@ -2027,161 +1953,7 @@ namespace CADCtrl
                 m_cube.m_surfs[5].m_points[2] = point7.Copy();
                 m_cube.m_surfs[5].m_points[3] = point8.Copy();
 
-                m_cube.updateCenter();
-                this.UserDrawCube(m_cube.Copy());
-
-
-                m_cube = new CADCube();
-                //m_cube.m_id = CubeNumber;
-                //log.Info(string.Format("cube number = {0}", CubeNumber));
-                //CubeNumber++;
-                m_cube.color = 2;
-                point1 = new CADPoint(3, 1, 1);
-                point2 = new CADPoint(2, 1, 1);
-                point3 = new CADPoint(2, -1, 1);
-                point4 = new CADPoint(3, -1, 1);
-
-                point5 = new CADPoint(3, 1, -1);
-                point6 = new CADPoint(2, 1, -1);
-                point7 = new CADPoint(2, -1, -1);
-                point8 = new CADPoint(3, -1, -1);
-
-                //if (m_cube.m_surfs[0] == null)
-                //{
-                //    MessageBox.Show("surfs");
-                //    return;
-                //}
-                m_cube.m_surfs[0].m_points[0] = point1.Copy();
-                m_cube.m_surfs[0].m_points[1] = point2.Copy();
-                m_cube.m_surfs[0].m_points[2] = point3.Copy();
-                m_cube.m_surfs[0].m_points[3] = point4.Copy();
-
-                m_cube.m_surfs[1].m_points[0] = point5.Copy();
-                m_cube.m_surfs[1].m_points[1] = point6.Copy();
-                m_cube.m_surfs[1].m_points[2] = point7.Copy();
-                m_cube.m_surfs[1].m_points[3] = point8.Copy();
-
-                m_cube.m_surfs[2].m_points[0] = point1.Copy();
-                m_cube.m_surfs[2].m_points[1] = point4.Copy();
-                m_cube.m_surfs[2].m_points[2] = point8.Copy();
-                m_cube.m_surfs[2].m_points[3] = point5.Copy();
-
-                m_cube.m_surfs[3].m_points[0] = point2.Copy();
-                m_cube.m_surfs[3].m_points[1] = point3.Copy();
-                m_cube.m_surfs[3].m_points[2] = point7.Copy();
-                m_cube.m_surfs[3].m_points[3] = point6.Copy();
-
-                m_cube.m_surfs[4].m_points[0] = point1.Copy();
-                m_cube.m_surfs[4].m_points[1] = point2.Copy();
-                m_cube.m_surfs[4].m_points[2] = point6.Copy();
-                m_cube.m_surfs[4].m_points[3] = point5.Copy();
-
-                m_cube.m_surfs[5].m_points[0] = point4.Copy();
-                m_cube.m_surfs[5].m_points[1] = point3.Copy();
-                m_cube.m_surfs[5].m_points[2] = point7.Copy();
-                m_cube.m_surfs[5].m_points[3] = point8.Copy();
-
-                m_cube.updateCenter();
-
-                this.UserDrawCube(m_cube.Copy());
-
-
-                CADPrism m_prism = new CADPrism();
-                //m_cube.m_id = CubeNumber;
-                //log.Info(string.Format("cube number = {0}", CubeNumber));
-                //CubeNumber++;
-                m_prism.color = 2;
-                point1 = new CADPoint(5, 1, 0);
-                point2 = new CADPoint(7, 1, 0);
-                point3 = new CADPoint(6, 1, 1);
-
-                point4 = new CADPoint(5, 2.5, 0);
-                point5 = new CADPoint(7, 2, 0);
-                point6 = new CADPoint(6, 2, 1);
-
-
-                //if (m_cube.m_surfs[0] == null)
-                //{
-                //    MessageBox.Show("surfs");
-                //    return;
-                //}
-                m_prism.m_surfs_tri[0].m_points[0] = point1.Copy();
-                m_prism.m_surfs_tri[0].m_points[1] = point2.Copy();
-                m_prism.m_surfs_tri[0].m_points[2] = point3.Copy();
-
-                m_prism.m_surfs_tri[1].m_points[0] = point4.Copy();
-                m_prism.m_surfs_tri[1].m_points[1] = point5.Copy();
-                m_prism.m_surfs_tri[1].m_points[2] = point6.Copy();
-
-
-                m_prism.m_surfs_rect[0].m_points[0] = point1.Copy();
-                m_prism.m_surfs_rect[0].m_points[1] = point4.Copy();
-                m_prism.m_surfs_rect[0].m_points[2] = point6.Copy();
-                m_prism.m_surfs_rect[0].m_points[3] = point3.Copy();
-
-                m_prism.m_surfs_rect[1].m_points[0] = point3.Copy();
-                m_prism.m_surfs_rect[1].m_points[1] = point6.Copy();
-                m_prism.m_surfs_rect[1].m_points[2] = point5.Copy();
-                m_prism.m_surfs_rect[1].m_points[3] = point2.Copy();
-
-                m_prism.m_surfs_rect[2].m_points[0] = point2.Copy();
-                m_prism.m_surfs_rect[2].m_points[1] = point5.Copy();
-                m_prism.m_surfs_rect[2].m_points[2] = point4.Copy();
-                m_prism.m_surfs_rect[2].m_points[3] = point1.Copy();
-
-
-                m_prism.updateCenter();
-
-                this.UserDrawPrism(m_prism.Copy());
-
-                m_prism = new CADPrism();
-                //m_cube.m_id = CubeNumber;
-                //log.Info(string.Format("cube number = {0}", CubeNumber));
-                //CubeNumber++;
-                m_prism.color = 2;
-                point1 = new CADPoint(1,5,  0);
-                point2 = new CADPoint(1,7,  0);
-                point3 = new CADPoint(1,6,  1);
-
-                point4 = new CADPoint(2,5,  0);
-                point5 = new CADPoint(2,7,  0);
-                point6 = new CADPoint(2, 6, 1);
-
-
-                //if (m_cube.m_surfs[0] == null)
-                //{
-                //    MessageBox.Show("surfs");
-                //    return;
-                //}
-                m_prism.m_surfs_tri[0].m_points[0] = point1.Copy();
-                m_prism.m_surfs_tri[0].m_points[1] = point2.Copy();
-                m_prism.m_surfs_tri[0].m_points[2] = point3.Copy();
-
-                m_prism.m_surfs_tri[1].m_points[0] = point4.Copy();
-                m_prism.m_surfs_tri[1].m_points[1] = point5.Copy();
-                m_prism.m_surfs_tri[1].m_points[2] = point6.Copy();
-
-
-                m_prism.m_surfs_rect[0].m_points[0] = point1.Copy();
-                m_prism.m_surfs_rect[0].m_points[1] = point4.Copy();
-                m_prism.m_surfs_rect[0].m_points[2] = point6.Copy();
-                m_prism.m_surfs_rect[0].m_points[3] = point3.Copy();
-
-                m_prism.m_surfs_rect[1].m_points[0] = point3.Copy();
-                m_prism.m_surfs_rect[1].m_points[1] = point6.Copy();
-                m_prism.m_surfs_rect[1].m_points[2] = point5.Copy();
-                m_prism.m_surfs_rect[1].m_points[3] = point2.Copy();
-
-                m_prism.m_surfs_rect[2].m_points[0] = point2.Copy();
-                m_prism.m_surfs_rect[2].m_points[1] = point5.Copy();
-                m_prism.m_surfs_rect[2].m_points[2] = point4.Copy();
-                m_prism.m_surfs_rect[2].m_points[3] = point1.Copy();
-
-
-                m_prism.updateCenter();
-
-                this.UserDrawPrism(m_prism.Copy());
-
+                this.UserDrawCube(m_cube);
 
             }
         }
@@ -2522,12 +2294,6 @@ namespace CADCtrl
         {
             return this.AddCube(cube);
         }
-
-        public bool UserDrawPrism(CADPrism prism, int color_id = 0)
-        {
-            return this.AddPrism(prism);
-        }
-
 
         public void UserDrawPoint(CADPoint point, int color_id = 0)
         {
@@ -2996,15 +2762,6 @@ namespace CADCtrl
                 return new CADPoint(src.m_x/divide, src.m_y / divide, src.m_z / divide);
             }
 
-            public static CADPoint operator -(CADPoint a, CADPoint b)
-            {
-                return new CADPoint(a.m_x-b.m_x, a.m_y - b.m_y, a.m_z - b.m_z);
-            }
-
-            public static CADPoint operator +(CADPoint a, CADPoint b)
-            {
-                return new CADPoint(a.m_x + b.m_x, a.m_y + b.m_y, a.m_z + b.m_z);
-            }
             //public static CADLine operator -(CADPoint a, CADPoint b)
             //{
             //    return new CADLine(a,b);
@@ -3016,7 +2773,6 @@ namespace CADCtrl
         {
             public int m_id = 0;
             public CADPoint[] m_points = new CADPoint[4];
-            public CADPoint m_center = new CADPoint();
             public Rect3D()
             {
 
@@ -3030,7 +2786,6 @@ namespace CADCtrl
                 {
                     m_points[i] = points[i].Copy();
                 }
-                this.updateCenter();
             }
 
             public Rect3D(CADPoint point1, CADPoint point2, CADPoint point3, CADPoint point4)
@@ -3039,22 +2794,12 @@ namespace CADCtrl
                 m_points[1] = point2.Copy();
                 m_points[2] = point3.Copy();
                 m_points[3] = point4.Copy();
-                this.updateCenter();
-
-            }
-
-            public CADPoint updateCenter()
-            {
-                m_center = (m_points[0] + m_points[1] + m_points[2] + m_points[3]) / 4;
-                return m_center;
             }
 
             public Rect3D Copy()
             {
-                Rect3D result = new Rect3D();
+                Rect3D result = new Rect3D(m_points);
                 result.m_id = m_id;
-                result.m_points = this.m_points;
-                result.updateCenter();
                 return result;
             }
         }
@@ -3064,7 +2809,6 @@ namespace CADCtrl
             public Rect3D[] m_surfs = null;
             public int m_id = 0;
             public int color = 0;
-            public CADPoint m_center = new CADPoint();
 
             public CADCube()
             {
@@ -3079,7 +2823,6 @@ namespace CADCtrl
                     return;
                 for (int i = 0; i < len; i++)
                     m_surfs[i] = surfs[i].Copy();
-                this.updateCenter();
             }
             public CADCube(Rect3D surf1, Rect3D surf2, Rect3D surf3, Rect3D surf4, Rect3D surf5, Rect3D surf6)
             {
@@ -3089,7 +2832,6 @@ namespace CADCtrl
                 m_surfs[3] = surf4.Copy();
                 m_surfs[4] = surf5.Copy();
                 m_surfs[5] = surf6.Copy();
-                this.updateCenter();
 
             }
             public CADCube Copy()
@@ -3098,137 +2840,10 @@ namespace CADCtrl
                 result.m_id = this.m_id;
                 result.color = color;
                 result.m_surfs = this.m_surfs;
-                result.updateCenter();
-                return result;
-            }
-
-            public CADPoint updateCenter()
-            {
-                if (m_surfs.Length != 6)
-                    return null;
-                m_center = new CADPoint();
-                for (int i = 0; i < 6; i++)
-                {
-                    m_center = m_center + m_surfs[i].updateCenter();
-                }
-                m_center = m_center/6;
-                return m_center;
-            }
-        }
-
-
-        public class Triangle
-        {
-            public int m_id = 0;
-            public CADPoint[] m_points = new CADPoint[3];
-            public CADPoint m_center = new CADPoint();
-            public Triangle()
-            {
-
-            }
-            public Triangle(CADPoint[] points)
-            {
-                int len = points.Length;
-                if (len != 3)
-                    return;
-                for (int i = 0; i < len; i++)
-                {
-                    m_points[i] = points[i].Copy();
-                }
-                this.updateCenter();
-            }
-
-            public Triangle(CADPoint point1, CADPoint point2, CADPoint point3)
-            {
-                m_points[0] = point1.Copy();
-                m_points[1] = point2.Copy();
-                m_points[2] = point3.Copy();
-                this.updateCenter();
-
-            }
-
-            public CADPoint updateCenter()
-            {
-                m_center = (m_points[0] + m_points[1] + m_points[2] ) /3;
-                return m_center;
-            }
-
-            public Triangle Copy()
-            {
-                Triangle result = new Triangle();
-                result.m_id = m_id;
-                result.m_points = this.m_points;
-                result.updateCenter();
                 return result;
             }
         }
 
-
-        public class CADPrism
-        {
-            public Triangle[] m_surfs_tri = null;
-            public Rect3D[] m_surfs_rect = null; 
-            public int m_id = 0;
-            public int color = 0;
-            public CADPoint m_center = new CADPoint();
-
-            public CADPrism()
-            {
-                m_surfs_tri = new Triangle[2];
-                for (int i = 0; i < 2; i++)
-                    m_surfs_tri[i] = new Triangle();
-                m_surfs_rect = new Rect3D[3];
-                for (int i = 0; i < 3; i++)
-                    m_surfs_rect[i] = new Rect3D();
-            }
-            public CADPrism(Triangle[] surfs_tri, Rect3D[] surfs_rect)
-            {
-                if (surfs_tri.Length != 2 || surfs_rect.Length != 3)
-                    return;
-                for (int i = 0; i < surfs_tri.Length; i++)
-                    m_surfs_tri[i] = surfs_tri[i].Copy();
-                for (int i = 0; i < surfs_rect.Length; i++)
-                    m_surfs_rect[i] = surfs_rect[i].Copy();
-                this.updateCenter();
-            }
-            public CADPrism(Triangle tri_surf1, Triangle tri_surf2, Rect3D trect_surf1, Rect3D trect_surf2, Rect3D trect_surf3)
-            {
-                m_surfs_tri[0] = tri_surf1.Copy();
-                m_surfs_tri[1] = tri_surf2.Copy();
-                m_surfs_rect[0] = trect_surf1.Copy();
-                m_surfs_rect[1] = trect_surf2.Copy();
-                m_surfs_rect[2] = trect_surf3.Copy();
-                this.updateCenter();
-
-            }
-            public CADPrism Copy()
-            {
-                CADPrism result = new CADPrism();
-                result.m_id = this.m_id;
-                result.color = color;
-                result.m_surfs_tri = this.m_surfs_tri;
-                result.m_surfs_rect = this.m_surfs_rect;
-                result.updateCenter();
-                return result;
-            }
-
-            public CADPoint updateCenter()
-            {
-                if (m_surfs_tri.Length != 2)
-                    return null;
-                m_center = new CADPoint();
-                for (int i = 0; i < 3; i++)
-                {
-                    m_surfs_rect[i].updateCenter();
-                }
-                for (int i = 0; i < 2; i++)
-                {
-                    m_center = m_center + m_surfs_tri[i].updateCenter();
-                }
-                m_center = m_center / 2;
-                return m_center;
-            }
-        }
 
 
         public class CADRGB
