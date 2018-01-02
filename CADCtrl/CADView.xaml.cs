@@ -41,6 +41,8 @@ namespace CADCtrl
         private int PointNumber;
         private int CubeNumber;
         private int PrismNumber;
+        private int CylinderNumber;
+
 
         private CADRect m_border;
         private double m_wheel_multi;//滚轮滚动一次放大的倍数
@@ -51,6 +53,8 @@ namespace CADCtrl
         Dictionary<int, CADPoint> AllPoints = new Dictionary<int, CADPoint>();
         Dictionary<int, CADCube> AllCubes = new Dictionary<int, CADCube>();
         Dictionary<int, CADPrism> AllPrisms = new Dictionary<int, CADPrism>();
+        Dictionary<int, CADCylinder> AllCylinders = new Dictionary<int, CADCylinder>();
+        Dictionary<int, CADCylinder> SelCylinders = new Dictionary<int, CADCylinder>();
         Dictionary<int, CADPrism> SelPrisms = new Dictionary<int, CADPrism>();
         Dictionary<int, CADCube> SelCubes = new Dictionary<int, CADCube>();
         Dictionary<int, CADPoint> SelPoints = new Dictionary<int, CADPoint>();
@@ -61,6 +65,8 @@ namespace CADCtrl
         Dictionary<int, int> AllRectsColor = new Dictionary<int, int>();
         Dictionary<int, int> AllCubesColor = new Dictionary<int, int>();
         Dictionary<int, int> AllPrismsColor = new Dictionary<int, int>();
+        Dictionary<int, int> AllCylindersColor = new Dictionary<int, int>();
+
         Point MidMouseDownStart = new Point(0, 0);
         Point MidMouseDownEnd = new Point(0, 0);
         Point m_currentpos = new Point(0, 0);
@@ -116,6 +122,7 @@ namespace CADCtrl
             PointNumber = 1;
             CubeNumber = 0;
             PrismNumber = 0;
+            CylinderNumber = 0;
             AllPoints[PointNumber] = new CADPoint();
             AllPoints[PointNumber].m_id = PointNumber;
             m_pixaxis = m_pixaxis * this.Height;//(this.Width < this.Height ? this.Width : this.Height);
@@ -686,6 +693,14 @@ namespace CADCtrl
                 }
             }
 
+            if (AllCylinders.Count > 0)
+            {
+                foreach (int key in this.AllCylinders.Keys)
+                {
+                    this.DrawCylinder(AllCylinders[key], AllColors[AllCylindersColor[key]]);
+                }
+            }
+
             if (AllPrisms.Count > 0)
             {
                 foreach (int key in this.AllPrisms.Keys)
@@ -923,6 +938,33 @@ namespace CADCtrl
             else
             {
                 AllCubes.Add(this_cube_id, this_cube.Copy());
+            }
+            return true;
+        }
+
+
+        private bool AddCylinder(CADCylinder cylinder, int color_id = 0)
+        {
+            if (cylinder == null)
+                return false;
+            CADCylinder this_cylinder = cylinder.Copy();
+            if (this_cylinder.m_id == 0)
+            {
+                CylinderNumber++;
+                this_cylinder.m_id = CylinderNumber;
+            }
+            int this_cylinder_id = this_cylinder.m_id;
+            if (!AllColors.ContainsKey(color_id))
+                color_id = 1;
+            if (!AllCylindersColor.ContainsKey(this_cylinder_id))
+                AllCylindersColor.Add(this_cylinder_id, color_id);
+            if (this.AllCylinders.ContainsKey(this_cylinder_id))
+            {
+                AllCylinders[this_cylinder_id] = this_cylinder.Copy();
+            }
+            else
+            {
+                AllCylinders.Add(this_cylinder_id, this_cylinder.Copy());
             }
             return true;
         }
@@ -1598,6 +1640,54 @@ namespace CADCtrl
                 m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
                 CADPoint nor = cube.m_surfs[i].m_center - cube.m_center;
                 m_openGLCtrl.Normal(nor.m_x, nor.m_y,nor.m_z);
+                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[0].m_x, cube.m_surfs[i].m_points[0].m_y, cube.m_surfs[i].m_points[0].m_z);
+                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[1].m_x, cube.m_surfs[i].m_points[1].m_y, cube.m_surfs[i].m_points[1].m_z);
+                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[2].m_x, cube.m_surfs[i].m_points[2].m_y, cube.m_surfs[i].m_points[2].m_z);
+                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[3].m_x, cube.m_surfs[i].m_points[3].m_y, cube.m_surfs[i].m_points[3].m_z);
+                m_openGLCtrl.End();
+
+            }
+            m_openGLCtrl.Flush();
+        }
+
+        private void DrawCylinder(CADCylinder cylinder, CADRGB color = null)
+        {
+
+            if (AllColors.ContainsKey(cylinder.color))
+                m_openGLCtrl.Color(AllColors[cylinder.color].m_r, AllColors[cylinder.color].m_g, AllColors[cylinder.color].m_b);
+            else
+                m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
+
+            CADPoint p1 = new CADPoint();
+            CADPoint p2 = new CADPoint();
+
+            CADPoint lenArr = cylinder.m_surfs_cir[1].m_center- cylinder.m_surfs_cir[0].m_center;
+
+            double sinalpha,singama;
+            double cosalpha, cosgama;
+            double length = cylinder.m_surfs_cir[0].m_normal.getLen();
+            if (length < 1e-5)
+                return;
+            //sinalpha = 
+            int devide = 60;
+            double r1 = cylinder.m_surfs_cir[0].m_r;
+            double r2 = cylinder.m_surfs_cir[1].m_r;
+            double diet_x = cylinder.m_surfs_cir[0].m_normal.m_x;
+            double diet_y = cylinder.m_surfs_cir[0].m_normal.m_y;
+            double diet_z = cylinder.m_surfs_cir[0].m_normal.m_z;
+
+
+            if (Math.Abs(diet_x) <=1e-5)
+
+            for (int i = 0; i < devide; i++)
+            {
+                p1.m_x = r1 * Math.Cos(i * 360 / devide);
+                p1.m_y = r1 * Math.Sin(i * 360 / devide);
+                p2.m_x = r1 * Math.Cos((i +1)* 360 / devide);
+                p2.m_y = r1 * Math.Sin((i +1)* 360 / devide);
+                m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
+                CADPoint nor = cube.m_surfs[i].m_center - cube.m_center;
+                m_openGLCtrl.Normal(nor.m_x, nor.m_y, nor.m_z);
                 m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[0].m_x, cube.m_surfs[i].m_points[0].m_y, cube.m_surfs[i].m_points[0].m_z);
                 m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[1].m_x, cube.m_surfs[i].m_points[1].m_y, cube.m_surfs[i].m_points[1].m_z);
                 m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[2].m_x, cube.m_surfs[i].m_points[2].m_y, cube.m_surfs[i].m_points[2].m_z);
@@ -2523,6 +2613,11 @@ namespace CADCtrl
             return this.AddCube(cube);
         }
 
+        public bool UserDrawCylinder(CADCylinder cylinder, int color_id = 0)
+        {
+            return this.AddCylinder(cylinder);
+        }
+
         public bool UserDrawPrism(CADPrism prism, int color_id = 0)
         {
             return this.AddPrism(prism);
@@ -2762,12 +2857,12 @@ namespace CADCtrl
         public class CADLine
         {
             public int m_id { get; set; }
-            public float m_xs { get; set; }
-            public float m_ys { get; set; }
-            public float m_xe { get; set; }
-            public float m_ye { get; set; }
-            public float m_zs { get; set; }
-            public float m_ze { get; set; }
+            public double m_xs { get; set; }
+            public double m_ys { get; set; }
+            public double m_xe { get; set; }
+            public double m_ye { get; set; }
+            public double m_zs { get; set; }
+            public double m_ze { get; set; }
 
             public CADLine()
             {
@@ -2783,10 +2878,10 @@ namespace CADCtrl
             public CADLine(Point p1, Point p2)
             {
                 m_id = 0;
-                m_xs = (float)p1.X;
-                m_ys = (float)p1.Y;
-                m_xe = (float)p2.X;
-                m_ye = (float)p2.Y;
+                m_xs = (double)p1.X;
+                m_ys = (double)p1.Y;
+                m_xe = (double)p2.X;
+                m_ye = (double)p2.Y;
                 m_zs = 0;
                 m_ze = 0;
             }
@@ -2794,23 +2889,23 @@ namespace CADCtrl
             public CADLine(double xs, double ys, double xe, double ye)
             {
                 m_id = 0;
-                m_xs = (float)xs;
-                m_ys = (float)ys;
+                m_xs = (double)xs;
+                m_ys = (double)ys;
                 m_zs =0;
-                m_xe = (float)xe;
-                m_ye = (float)ye;
+                m_xe = (double)xe;
+                m_ye = (double)ye;
                 m_ze = 0;
             }
 
             public CADLine(double xs, double ys, double zs, double xe, double ye, double ze)
             {
                 m_id = 0;
-                m_xs = (float)xs;
-                m_ys = (float)ys;
-                m_zs = (float)zs;
-                m_xe = (float)xe;
-                m_ye = (float)ye;
-                m_ze = (float)ze;
+                m_xs = (double)xs;
+                m_ys = (double)ys;
+                m_zs = (double)zs;
+                m_xe = (double)xe;
+                m_ye = (double)ye;
+                m_ze = (double)ze;
             }
 
             public CADLine(CADPoint p1,CADPoint p2)
@@ -2846,14 +2941,14 @@ namespace CADCtrl
         public class CADRect
         {
             public int m_id { get; set; }
-            public float m_xs { get; set; }
-            public float m_ys { get; set; }
-            public float m_xe { get; set; }
-            public float m_ye { get; set; }
-            public float m_len { get; set; }
+            public double m_xs { get; set; }
+            public double m_ys { get; set; }
+            public double m_xe { get; set; }
+            public double m_ye { get; set; }
+            public double m_len { get; set; }
             public int m_flag { get; set; }//梁柱标志，0表示梁，1表示柱
-            public float m_width { get; set; }
-            public float m_height { get; set; }
+            public double m_width { get; set; }
+            public double m_height { get; set; }
             public string m_rebar { get; set; }//钢筋布置索引，编号意味着对应1好钢筋图
             public int m_concrete { get; set; }//混凝土等级索引，需要预定义好
             public CADRect()
@@ -2876,10 +2971,10 @@ namespace CADCtrl
             {
 
                 m_id = 0;
-                m_xs = (float)p1.X;
-                m_ys = (float)p1.Y;
-                m_xe = (float)p2.X;
-                m_ye = (float)p2.Y;
+                m_xs = (double)p1.X;
+                m_ys = (double)p1.Y;
+                m_xe = (double)p2.X;
+                m_ye = (double)p2.Y;
                 m_len = 0.0f;
                 m_flag = flag;
                 m_rebar = "";
@@ -2892,10 +2987,10 @@ namespace CADCtrl
             {
 
                 m_id = 0;
-                m_xs = (float)xs;
-                m_ys = (float)ys;
-                m_xe = (float)xe;
-                m_ye = (float)ye;
+                m_xs = (double)xs;
+                m_ys = (double)ys;
+                m_xe = (double)xe;
+                m_ye = (double)ye;
                 m_len = 0.0f;
                 m_flag = flag;
                 m_rebar = "";
@@ -2942,9 +3037,9 @@ namespace CADCtrl
         public class CADPoint
         {
             public int m_id { get; set; }
-            public float m_x { get; set; }
-            public float m_y { get; set; }
-            public float m_z { get; set; }
+            public double m_x { get; set; }
+            public double m_y { get; set; }
+            public double m_z { get; set; }
             public int m_is_rebar { get; set; }
             public int m_diameter { get; set; }
             public int m_strength { get; set; }
@@ -2968,9 +3063,9 @@ namespace CADCtrl
             public CADPoint(double x, double y, double z = 0)
             {
                 m_id = 0;
-                m_x = (float)x;
-                m_y = (float)y;
-                m_z = (float)z;
+                m_x = (double)x;
+                m_y = (double)y;
+                m_z = (double)z;
                 m_is_rebar = 0;
                 m_diameter = -1;
                 m_strength = -1;
@@ -2991,9 +3086,20 @@ namespace CADCtrl
                 return result;
             }
 
+            public double getLen()
+            {
+                return Math.Sqrt(m_x* m_x+ m_y * m_y + m_z * m_z);
+            }
+
             public static CADPoint operator/(CADPoint src, double divide)
             {
                 return new CADPoint(src.m_x/divide, src.m_y / divide, src.m_z / divide);
+            }
+
+            public static double operator *(CADPoint a, CADPoint b)
+            {
+                double result = a.m_x * b.m_x + a.m_y * b.m_y + a.m_z * b.m_z;
+                return result;
             }
 
             public static CADPoint operator -(CADPoint a, CADPoint b)
@@ -3001,10 +3107,16 @@ namespace CADCtrl
                 return new CADPoint(a.m_x-b.m_x, a.m_y - b.m_y, a.m_z - b.m_z);
             }
 
+            public static CADPoint operator -(CADPoint b)
+            {
+                return new CADPoint( - b.m_x,  - b.m_y,  - b.m_z);
+            }
+
             public static CADPoint operator +(CADPoint a, CADPoint b)
             {
                 return new CADPoint(a.m_x + b.m_x, a.m_y + b.m_y, a.m_z + b.m_z);
             }
+
             //public static CADLine operator -(CADPoint a, CADPoint b)
             //{
             //    return new CADLine(a,b);
@@ -3056,6 +3168,11 @@ namespace CADCtrl
                 result.m_points = this.m_points;
                 result.updateCenter();
                 return result;
+            }
+
+            public static Rect3D operator +(Rect3D rect, CADPoint arr)
+            {
+                return new Rect3D(rect.m_points[0]+arr, rect.m_points[1] + arr, rect.m_points[2] + arr, rect.m_points[3] + arr);
             }
         }
 
@@ -3114,6 +3231,12 @@ namespace CADCtrl
                 m_center = m_center/6;
                 return m_center;
             }
+
+            public static CADCube operator +(CADCube cube, CADPoint arr)
+            {
+                return new CADCube(cube.m_surfs[0] + arr, cube.m_surfs[1] + arr, cube.m_surfs[2] + arr, cube.m_surfs[3] + arr, cube.m_surfs[4] + arr, cube.m_surfs[5] + arr);
+            }
+
         }
 
 
@@ -3161,6 +3284,12 @@ namespace CADCtrl
                 result.updateCenter();
                 return result;
             }
+
+            public static Triangle operator +(Triangle tri, CADPoint arr)
+            {
+                return new Triangle(tri.m_points[0] + arr, tri.m_points[1] + arr, tri.m_points[2] + arr);
+            }
+
         }
 
 
@@ -3228,21 +3357,222 @@ namespace CADCtrl
                 m_center = m_center / 2;
                 return m_center;
             }
+
+            public static CADPrism operator +(CADPrism prism, CADPoint arr)
+            {
+                return new CADPrism(prism.m_surfs_tri[0] + arr, prism.m_surfs_tri[1] + arr, prism.m_surfs_rect[0] + arr, prism.m_surfs_rect[1] + arr, prism.m_surfs_rect[2] + arr);
+            }
+
         }
 
 
+        public class CADCylinder
+        {
+            public int m_id = 0;
+            public int color = 0;
+            public CADPoint m_center = null;
+            public CADCircle[] m_surfs_cir = null;
+
+            public CADCylinder()
+            {
+                m_center = new CADPoint();
+                m_surfs_cir[0] = new CADCircle();
+                m_surfs_cir[1] = new CADCircle();
+            }
+
+            public CADCylinder(CADCircle c1, CADCircle c2)
+            {
+                m_surfs_cir[0] = c1.Copy();
+                m_surfs_cir[1] = c2.Copy();
+                m_center = (c1.m_center + c2.m_center) / 2;
+            }
+
+            public CADCylinder Copy()
+            {
+                CADCylinder result = new CADCylinder();
+                result.m_center = this.m_center.Copy();
+                result.m_surfs_cir[0] = this.m_surfs_cir[0].Copy();
+                result.m_surfs_cir[1] = this.m_surfs_cir[1].Copy();
+                return result;
+            }
+
+            public static CADCylinder operator +(CADCylinder cylinder, CADPoint arr)
+            {
+                return new CADCylinder(cylinder.m_surfs_cir[0] + arr, cylinder.m_surfs_cir[1] + arr);
+            }
+
+
+
+        }
+
+        public class CADCircle
+        {
+            public int m_id = 0;
+            public int color = 0;
+            public CADPoint m_center = new CADPoint();
+            public double m_r = 0;
+            public CADPoint m_normal = new CADPoint();
+            public CADCircle()
+            {
+            }
+            public CADCircle(CADPoint center, CADPoint normal,double r)
+            {
+                this.m_normal = normal.Copy();
+                this.m_center = center.Copy();
+                this.m_r = r;
+            }
+
+            public CADCircle(CADPoint p1, CADPoint p2, CADPoint p3)
+            {
+                
+                CADPoint a = p2 - p1;
+                CADPoint b = p3 - p1;
+                double x10 = p2.m_x - p1.m_x;
+                double xx10 = p2.m_x + p1.m_x;
+                double y10 = p2.m_y - p1.m_y;
+                double yy10 = p2.m_y + p1.m_y;
+                double z10 = p2.m_z - p1.m_z;
+                double zz10 = p2.m_z + p1.m_z;
+                //用于表达过点0，2中垂线的平面
+                double x20 = p3.m_x - p1.m_x;
+                double xx20 = p3.m_x + p1.m_x;
+                double y20 = p3.m_y - p1.m_y;
+                double yy20 = p3.m_y + p1.m_y;
+                double z20 = p3.m_z - p1.m_z;
+                double zz20 = p3.m_z + p1.m_z;
+                //平面的法向量
+                CADPoint nor = new CADPoint(a.m_y*b.m_z-a.m_z*b.m_y,a.m_z*b.m_x-a.m_x*b.m_z,a.m_x*b.m_y-a.m_y*b.m_x);
+
+                double t1 = (x10 * xx10 + y10 * yy10 + z10 * zz10) / 2;
+                double t2 = (x20 * xx20 + y20 * yy20 + z20 * zz20) / 2;
+                double t3 = nor.m_x * p1.m_x + nor.m_y * p1.m_y + nor.m_z * p1.m_z;
+
+                double  D = nor.m_x * y10 * z20
+                    + x20 * nor.m_y * z10
+                    + x10 * y20 * nor.m_z
+                    - nor.m_z * y10 * x20
+                    - z20 * nor.m_y * x10
+                   - z10 * y20 * nor.m_x;
+                double  D1 = t3 * y10 * z20
+                    + t2 * nor.m_y * z10
+                    + t1 * y20 * nor.m_z
+                    - nor.m_z * y10 * t2
+                    - z20 * nor.m_y * t1
+                   - z10 * y20 * t3;
+                double  D2 = nor.m_x * t1 * z20
+                    + x20 * t3 * z10
+                    + x10 * t2 * nor.m_z
+                    - nor.m_z * t1 * x20
+                    - z20 * t3 * x10
+                   - z10 * t2 * nor.m_x;
+                double  D3 = nor.m_x * y10 * t2
+                    + x20 * nor.m_y * t1
+                    + x10 * y20 * t3
+                    - t3 * y10 * x20
+                    - t2 * nor.m_y * x10
+                   - t1 * y20 * nor.m_x;
+
+                double Circlex = D1 / D;
+                double Circley = D2 / D;
+                double Circlez = D3 / D;
+
+                this.m_center = new CADPoint(Circlex, Circley, Circlez);
+                this.m_normal = nor.Copy();
+                this.m_r = (nor-p1).getLen();
+            }
+
+            public CADCircle(CADPoint[] points)
+            {
+
+                CADPoint p1 = points[0].Copy();
+                CADPoint p2 = points[1].Copy();
+                CADPoint p3 = points[2].Copy();
+
+                CADPoint a = p2 - p1;
+                CADPoint b = p3 - p1;
+                CADPoint nor = new CADPoint(a.m_y * b.m_z - a.m_z * b.m_y, a.m_z * b.m_x - a.m_x * b.m_z, a.m_x * b.m_y - a.m_y * b.m_x);
+                double x10 = p2.m_x - p1.m_x;
+                double xx10 = p2.m_x + p1.m_x;
+                double y10 = p2.m_y - p1.m_y;
+                double yy10 = p2.m_y + p1.m_y;
+                double z10 = p2.m_z - p1.m_z;
+                double zz10 = p2.m_z + p1.m_z;
+                //用于表达过点0，2中垂线的平面
+                double x20 = p3.m_x - p1.m_x;
+                double xx20 = p3.m_x + p1.m_x;
+                double y20 = p3.m_y - p1.m_y;
+                double yy20 = p3.m_y + p1.m_y;
+                double z20 = p3.m_z - p1.m_z;
+                double zz20 = p3.m_z + p1.m_z;
+                //平面的法向量
+
+                double t1 = (x10 * xx10 + y10 * yy10 + z10 * zz10) / 2;
+                double t2 = (x20 * xx20 + y20 * yy20 + z20 * zz20) / 2;
+                double t3 = nor.m_x * p1.m_x + nor.m_y * p1.m_y + nor.m_z * p1.m_z;
+
+                double D = nor.m_x * y10 * z20
+                    + x20 * nor.m_y * z10
+                    + x10 * y20 * nor.m_z
+                    - nor.m_z * y10 * x20
+                    - z20 * nor.m_y * x10
+                   - z10 * y20 * nor.m_x;
+                double D1 = t3 * y10 * z20
+                    + t2 * nor.m_y * z10
+                    + t1 * y20 * nor.m_z
+                    - nor.m_z * y10 * t2
+                    - z20 * nor.m_y * t1
+                   - z10 * y20 * t3;
+                double D2 = nor.m_x * t1 * z20
+                    + x20 * t3 * z10
+                    + x10 * t2 * nor.m_z
+                    - nor.m_z * t1 * x20
+                    - z20 * t3 * x10
+                   - z10 * t2 * nor.m_x;
+                double D3 = nor.m_x * y10 * t2
+                    + x20 * nor.m_y * t1
+                    + x10 * y20 * t3
+                    - t3 * y10 * x20
+                    - t2 * nor.m_y * x10
+                   - t1 * y20 * nor.m_x;
+
+                double Circlex = D1 / D;
+                double Circley = D2 / D;
+                double Circlez = D3 / D;
+
+                this.m_center = new CADPoint(Circlex, Circley, Circlez);
+                this.m_normal = nor.Copy();
+                this.m_r = (nor - p1).getLen();
+            }
+
+
+            public CADCircle Copy()
+            {
+                CADCircle result = new CADCircle();
+                result.m_id = m_id;
+                result.m_center = this.m_center.Copy(); ;
+                result.m_normal = this.m_normal.Copy();
+                result.m_r = this.m_r;
+                return result;
+            }
+
+            public static CADCircle operator +(CADCircle cir, CADPoint arr)
+            {
+                return new CADCircle(cir.m_center+arr,cir.m_normal,cir.m_r);
+            }
+        }
+
         public class CADRGB
         {
-            public float m_r = 0.0f;
-            public float m_g = 0.0f;
-            public float m_b = 0.0f;
+            public double m_r = 0.0f;
+            public double m_g = 0.0f;
+            public double m_b = 0.0f;
             public CADRGB()
             { }
             public CADRGB(double r, double g, double b)
             {
-                m_r = (float)r;
-                m_g = (float)g;
-                m_b = (float)b;
+                m_r = (double)r;
+                m_g = (double)g;
+                m_b = (double)b;
             }
 
             public CADRGB Copy()
