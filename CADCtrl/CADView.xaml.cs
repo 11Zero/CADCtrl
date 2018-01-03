@@ -1626,15 +1626,15 @@ namespace CADCtrl
 
         private void DrawCube(CADCube cube, CADRGB color = null)
         {
-            Teapot tp = new Teapot();
-            m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
-            tp.Draw(m_openGLCtrl, 4, 1, OpenGL.GL_FILL);
+            //Teapot tp = new Teapot();
+            //m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
+            //tp.Draw(m_openGLCtrl, 4, 1, OpenGL.GL_FILL);
 
             if (AllColors.ContainsKey(cube.color))
                 m_openGLCtrl.Color(AllColors[cube.color].m_r, AllColors[cube.color].m_g, AllColors[cube.color].m_b);
             else
                 m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
-
+            cube.updateCenter();
             for (int i = 0; i < 6; i++)
             {
                 m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
@@ -1658,39 +1658,36 @@ namespace CADCtrl
             else
                 m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
 
+            cylinder.updateCenter();
             CADPoint p1 = new CADPoint();
             CADPoint p2 = new CADPoint();
+            CADPoint p3 = new CADPoint();
+            CADPoint p4 = new CADPoint();
 
             CADPoint lenArr = cylinder.m_surfs_cir[1].m_center- cylinder.m_surfs_cir[0].m_center;
 
-            //double sinalpha,singama;
-            //double cosalpha, cosgama;
+
             double length = cylinder.m_surfs_cir[0].m_normal.getLen();
             if (length < 1e-5)
                 return;
             //sinalpha = 
-            int devide = 60;
+            int devide = 100;
             double r1 = cylinder.m_surfs_cir[0].m_r;
             double r2 = cylinder.m_surfs_cir[1].m_r;
-            //double diet_x = cylinder.m_surfs_cir[0].m_normal.m_x;
-            //double diet_y = cylinder.m_surfs_cir[0].m_normal.m_y;
-            //double diet_z = cylinder.m_surfs_cir[0].m_normal.m_z;
-
-            //m_openGLCtrl.Rotate();
-            //m_openGLCtrl.GetFloat(OpenGL.GL_MODELVIEW,)
-            //if (Math.Abs(diet_x) <=1e-5)
-
             for (int i = 0; i < devide; i++)
             {
-                //p1 =cylinder.m_surfs_cir[0].m_center;
-                //p2 =cylinder.m_surfs_cir[0].m_center;
-                p1.m_x = r1 * Math.Cos(i * 360 / devide);
-                p1.m_y = r1 * Math.Sin(i * 360 / devide);
-                p2.m_x = r1 * Math.Cos((i +1)* 360 / devide);
-                p2.m_y = r1 * Math.Sin((i +1)* 360 / devide);
+                p1.m_x = r1 * Math.Cos(i * 2 * Math.PI / devide);
+                p1.m_y = r1 * Math.Sin(i * 2 * Math.PI / devide);
+                p2.m_x = r1 * Math.Cos((i +1) * 2 * Math.PI / devide);
+                p2.m_y = r1 * Math.Sin((i +1) * 2 * Math.PI / devide);
+                p3.m_x = r2 * Math.Cos(i * 2 * Math.PI / devide);
+                p3.m_y = r2 * Math.Sin(i * 2 * Math.PI / devide);
+                p4.m_x = r2 * Math.Cos((i + 1) * 2 * Math.PI / devide);
+                p4.m_y = r2 * Math.Sin((i + 1) * 2 * Math.PI / devide);
+
                 m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
-                CADPoint nor = (p1+p2+p1+p2+ cylinder.m_surfs_cir[1].m_center- cylinder.m_surfs_cir[0].m_center)/4- cylinder.m_center;
-                //CADPoint c2_c1 = cylinder.m_surfs_cir[1].m_center + cylinder.m_surfs_cir[0].m_center;
+                CADPoint nor = (p1+ cylinder.m_surfs_cir[0].m_center+ p2+cylinder.m_surfs_cir[0].m_center +p3+ cylinder.m_surfs_cir[1].m_center + p3+cylinder.m_surfs_cir[1].m_center)/4- cylinder.m_center;
+
                 m_openGLCtrl.Normal(nor.m_x, nor.m_y, nor.m_z);
                 m_openGLCtrl.Vertex(
                     (p1 + cylinder.m_surfs_cir[0].m_center).m_x,
@@ -1701,13 +1698,13 @@ namespace CADCtrl
                     (p2 + cylinder.m_surfs_cir[0].m_center).m_y,
                     (p2 + cylinder.m_surfs_cir[0].m_center).m_z);
                 m_openGLCtrl.Vertex(
-                    (p2 + cylinder.m_surfs_cir[1].m_center).m_x,
-                    (p2 + cylinder.m_surfs_cir[1].m_center).m_y,
-                    (p2 + cylinder.m_surfs_cir[1].m_center).m_z);
+                    (p4 + cylinder.m_surfs_cir[1].m_center).m_x,
+                    (p4 + cylinder.m_surfs_cir[1].m_center).m_y,
+                    (p4 + cylinder.m_surfs_cir[1].m_center).m_z);
                 m_openGLCtrl.Vertex(
-                    (p1 + cylinder.m_surfs_cir[1].m_center).m_x,
-                    (p1 + cylinder.m_surfs_cir[1].m_center).m_y,
-                    (p1 + cylinder.m_surfs_cir[1].m_center).m_z);
+                    (p3 + cylinder.m_surfs_cir[1].m_center).m_x,
+                    (p3 + cylinder.m_surfs_cir[1].m_center).m_y,
+                    (p3 + cylinder.m_surfs_cir[1].m_center).m_z);
                 m_openGLCtrl.End();
 
                 m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Triangles);
@@ -1740,6 +1737,7 @@ namespace CADCtrl
                 m_openGLCtrl.Color(AllColors[prism.color].m_r, AllColors[prism.color].m_g, AllColors[prism.color].m_b);
             else
                 m_openGLCtrl.Color(1.0f, 1.0f, 0.0f);
+            prism.updateCenter();
             CADPoint nor = null;
             for (int i = 0; i < 3; i++)
             {
@@ -2036,62 +2034,65 @@ namespace CADCtrl
         {
             if (this.AllCubes.ContainsKey(cube_id))
             {
-                //    if (AllPointsInLines[cube_id].Count > 0)
-                //    {
-                //        foreach (int value in AllPointsInLines[line_id])
-                //        {
-                //            if (AllPoints.ContainsKey(value))
-                //                AllPoints.Remove(value);
-                //            if (SelPoints.ContainsKey(value))
-                //            {
-                //                SelPoints.Remove(value);
-                //                for (int i = 0; i < m_sel_point_list.Count; i++)
-                //                {
-                //                    if (m_sel_point_list[i].m_id == value)
-                //                    {
-                //                        m_sel_point_list.RemoveAt(i);
-                //                        break;
-                //                    }
-                //                }
-                //            }
-                //        }
-                //    }
-
-                //AllPointsInLines.Remove(cube_id);
                 AllCubes.Remove(cube_id);
                 AllCubesColor.Remove(cube_id);
-
-
             }
-            //if (AllPointsInLines.Count > 0)
-            //{
-            //    foreach (int value in AllPointsInLines.Keys)
-            //    {
-
-            //        for (int i = 0; i < AllPointsInLines[value].Count; i++)
-            //        {
-            //            if (!AllPoints.ContainsKey(AllPointsInLines[value][i]))
-            //                AllPointsInLines[value].Remove(i);
-            //        }
-
-            //    }
-            //}
-            //if (AllPointsInRects.Count > 0)
-            //{
-            //    foreach (int value in AllPointsInRects.Keys)
-            //    {
-
-            //        for (int i = 0; i < AllPointsInRects[value].Count; i++)
-            //        {
-            //            if (!AllPoints.ContainsKey(AllPointsInRects[value][i]))
-            //                AllPointsInRects[value].RemoveAt(i);
-            //        }
-
-            //    }
-            //}
             this.UpdateBorder();
         }
 
+        private void DelAllCubes()
+        {
+            if (AllCubes.Count > 0)
+            {
+                AllCubes.Clear();
+                AllCubesColor.Clear();
+                CubeNumber = 0;
+            }
+            this.UpdateBorder();
+        }
+
+        private void DelAllCylinders()
+        {
+            if (AllCylinders.Count > 0)
+            {
+                AllCylinders.Clear();
+                AllCylindersColor.Clear();
+                CylinderNumber = 0;
+            }
+            this.UpdateBorder();
+        }
+
+        private void DelCylinder(int cylinder_id)
+        {
+            if (this.AllCylinders.ContainsKey(cylinder_id))
+            {
+                AllCylinders.Remove(cylinder_id);
+                AllCylindersColor.Remove(cylinder_id);
+            }
+            this.UpdateBorder();
+        }
+
+
+        private void DelPrism(int prism_id)
+        {
+            if (this.AllPrisms.ContainsKey(prism_id))
+            {
+                AllPrisms.Remove(prism_id);
+                AllPrismsColor.Remove(prism_id);
+            }
+            this.UpdateBorder();
+        }
+
+        private void DelAllPrisms()
+        {
+            if (AllPrisms.Count > 0)
+            {
+                AllPrisms.Clear();
+                AllPrismsColor.Clear();
+                PrismNumber = 0;
+            }
+            this.UpdateBorder();
+        }
 
         public void Test(object obj = null)
         {
@@ -2149,63 +2150,65 @@ namespace CADCtrl
                 m_cube.m_surfs[5].m_points[3] = point8.Copy();
 
                 m_cube.updateCenter();
+                this.UserDrawCube(m_cube.Copy());
+
+                this.UserDrawCube(m_cube+new CADPoint(20,0,0));
+
+                //m_cube = new CADCube();
+                ////m_cube.m_id = CubeNumber;
+                ////log.Info(string.Format("cube number = {0}", CubeNumber));
+                ////CubeNumber++;
+                //m_cube.color = 2;
+                //point1 = new CADPoint(3, 1, 1);
+                //point2 = new CADPoint(2, 1, 1);
+                //point3 = new CADPoint(2, -1, 1);
+                //point4 = new CADPoint(3, -1, 1);
+
+                //point5 = new CADPoint(3, 1, -1);
+                //point6 = new CADPoint(2, 1, -1);
+                //point7 = new CADPoint(2, -1, -1);
+                //point8 = new CADPoint(3, -1, -1);
+
+                ////if (m_cube.m_surfs[0] == null)
+                ////{
+                ////    MessageBox.Show("surfs");
+                ////    return;
+                ////}
+                //m_cube.m_surfs[0].m_points[0] = point1.Copy();
+                //m_cube.m_surfs[0].m_points[1] = point2.Copy();
+                //m_cube.m_surfs[0].m_points[2] = point3.Copy();
+                //m_cube.m_surfs[0].m_points[3] = point4.Copy();
+
+                //m_cube.m_surfs[1].m_points[0] = point5.Copy();
+                //m_cube.m_surfs[1].m_points[1] = point6.Copy();
+                //m_cube.m_surfs[1].m_points[2] = point7.Copy();
+                //m_cube.m_surfs[1].m_points[3] = point8.Copy();
+
+                //m_cube.m_surfs[2].m_points[0] = point1.Copy();
+                //m_cube.m_surfs[2].m_points[1] = point4.Copy();
+                //m_cube.m_surfs[2].m_points[2] = point8.Copy();
+                //m_cube.m_surfs[2].m_points[3] = point5.Copy();
+
+                //m_cube.m_surfs[3].m_points[0] = point2.Copy();
+                //m_cube.m_surfs[3].m_points[1] = point3.Copy();
+                //m_cube.m_surfs[3].m_points[2] = point7.Copy();
+                //m_cube.m_surfs[3].m_points[3] = point6.Copy();
+
+                //m_cube.m_surfs[4].m_points[0] = point1.Copy();
+                //m_cube.m_surfs[4].m_points[1] = point2.Copy();
+                //m_cube.m_surfs[4].m_points[2] = point6.Copy();
+                //m_cube.m_surfs[4].m_points[3] = point5.Copy();
+
+                //m_cube.m_surfs[5].m_points[0] = point4.Copy();
+                //m_cube.m_surfs[5].m_points[1] = point3.Copy();
+                //m_cube.m_surfs[5].m_points[2] = point7.Copy();
+                //m_cube.m_surfs[5].m_points[3] = point8.Copy();
+
+                //m_cube.updateCenter();
+
                 //this.UserDrawCube(m_cube.Copy());
 
-
-                m_cube = new CADCube();
-                //m_cube.m_id = CubeNumber;
-                //log.Info(string.Format("cube number = {0}", CubeNumber));
-                //CubeNumber++;
-                m_cube.color = 2;
-                point1 = new CADPoint(3, 1, 1);
-                point2 = new CADPoint(2, 1, 1);
-                point3 = new CADPoint(2, -1, 1);
-                point4 = new CADPoint(3, -1, 1);
-
-                point5 = new CADPoint(3, 1, -1);
-                point6 = new CADPoint(2, 1, -1);
-                point7 = new CADPoint(2, -1, -1);
-                point8 = new CADPoint(3, -1, -1);
-
-                //if (m_cube.m_surfs[0] == null)
-                //{
-                //    MessageBox.Show("surfs");
-                //    return;
-                //}
-                m_cube.m_surfs[0].m_points[0] = point1.Copy();
-                m_cube.m_surfs[0].m_points[1] = point2.Copy();
-                m_cube.m_surfs[0].m_points[2] = point3.Copy();
-                m_cube.m_surfs[0].m_points[3] = point4.Copy();
-
-                m_cube.m_surfs[1].m_points[0] = point5.Copy();
-                m_cube.m_surfs[1].m_points[1] = point6.Copy();
-                m_cube.m_surfs[1].m_points[2] = point7.Copy();
-                m_cube.m_surfs[1].m_points[3] = point8.Copy();
-
-                m_cube.m_surfs[2].m_points[0] = point1.Copy();
-                m_cube.m_surfs[2].m_points[1] = point4.Copy();
-                m_cube.m_surfs[2].m_points[2] = point8.Copy();
-                m_cube.m_surfs[2].m_points[3] = point5.Copy();
-
-                m_cube.m_surfs[3].m_points[0] = point2.Copy();
-                m_cube.m_surfs[3].m_points[1] = point3.Copy();
-                m_cube.m_surfs[3].m_points[2] = point7.Copy();
-                m_cube.m_surfs[3].m_points[3] = point6.Copy();
-
-                m_cube.m_surfs[4].m_points[0] = point1.Copy();
-                m_cube.m_surfs[4].m_points[1] = point2.Copy();
-                m_cube.m_surfs[4].m_points[2] = point6.Copy();
-                m_cube.m_surfs[4].m_points[3] = point5.Copy();
-
-                m_cube.m_surfs[5].m_points[0] = point4.Copy();
-                m_cube.m_surfs[5].m_points[1] = point3.Copy();
-                m_cube.m_surfs[5].m_points[2] = point7.Copy();
-                m_cube.m_surfs[5].m_points[3] = point8.Copy();
-
-                m_cube.updateCenter();
-
                 //this.UserDrawCube(m_cube.Copy());
-
 
                 CADPrism m_prism = new CADPrism();
                 //m_cube.m_id = CubeNumber;
@@ -2253,7 +2256,7 @@ namespace CADCtrl
 
                 m_prism.updateCenter();
 
-                //this.UserDrawPrism(m_prism.Copy());
+                this.UserDrawPrism(m_prism.Copy());
 
                 m_prism = new CADPrism();
                 //m_cube.m_id = CubeNumber;
@@ -2301,7 +2304,7 @@ namespace CADCtrl
 
                 m_prism.updateCenter();
 
-                //this.UserDrawPrism(m_prism.Copy());
+                this.UserDrawPrism(m_prism.Copy());
 
                 //m_cube.m_id = CubeNumber;
                 //log.Info(string.Format("cube number = {0}", CubeNumber));
@@ -2309,15 +2312,18 @@ namespace CADCtrl
                 m_prism.color = 2;
                 point1 = new CADPoint(15, 15, 0);
                 point2 = new CADPoint(15, 15, -5);
-                point3 = new CADPoint(15, 15, 1);
-                point4 = new CADPoint(15, 15, -6);
+                point3 = new CADPoint(15, 15, 30);
+                point4 = new CADPoint(15, 15, 31);
                 CADCylinder cylinder = new CADCylinder();
 
-                cylinder.m_surfs_cir[0] = new CADCircle(point1,point3,1);
-                cylinder.m_surfs_cir[1] = new CADCircle(point2, point4, 1);
+                cylinder.m_surfs_cir[0] = new CADCircle(point1,point3,1.5);
+                cylinder.m_surfs_cir[1] = new CADCircle(point2, point4, 1.5);
                 cylinder.updateCenter();
 
                 this.UserDrawCylinder(cylinder.Copy());
+
+                this.UserDrawCylinder(cylinder+new CADPoint(20,0,0));
+
 
 
 
@@ -2621,9 +2627,40 @@ namespace CADCtrl
             this.DelAllRects();
         }
 
+        public void UserDelAllCubes()
+        {
+            this.DelAllCubes();
+        }
+
+        public void UserDelAllCylinders()
+        {
+            this.DelAllCylinders();
+        }
+
+
+        public void UserDelAllPrisms()
+        {
+            this.DelAllPrisms();
+        }
+
         public void UserDelRect(int rect_id)
         {
             this.DelRect(rect_id);
+        }
+
+        public void UserDelCube(int cube_id)
+        {
+            this.DelCube(cube_id);
+        }
+
+        public void UserDelCylinder(int cylinder_id)
+        {
+            this.DelCylinder(cylinder_id);
+        }
+
+        public void UserDelPrism(int prism_id)
+        {
+            this.DelPrism(prism_id);
         }
 
         public void UserDelPoint(int point_id)
@@ -3220,22 +3257,23 @@ namespace CADCtrl
 
             public static Rect3D operator +(Rect3D rect, CADPoint arr)
             {
-                return new Rect3D(rect.m_points[0]+arr, rect.m_points[1] + arr, rect.m_points[2] + arr, rect.m_points[3] + arr);
+                Rect3D result = new Rect3D(rect.m_points[0] + arr, rect.m_points[1] + arr, rect.m_points[2] + arr, rect.m_points[3] + arr);
+                return result;
             }
         }
 
         public class CADCube
         {
-            public Rect3D[] m_surfs = null;
+            public Rect3D[] m_surfs = { new Rect3D() , new Rect3D() , new Rect3D() , new Rect3D() , new Rect3D() , new Rect3D() };
             public int m_id = 0;
             public int color = 0;
             public CADPoint m_center = new CADPoint();
 
             public CADCube()
             {
-                m_surfs = new Rect3D[6];
-                for (int i = 0; i < 6; i++)
-                    m_surfs[i] = new Rect3D();
+                //m_surfs = new Rect3D[6];
+                //for (int i = 0; i < 6; i++)
+                //    m_surfs[i] = new Rect3D();
             }
             public CADCube(Rect3D[] surfs)
             {
@@ -3257,6 +3295,19 @@ namespace CADCtrl
                 this.updateCenter();
 
             }
+
+            public CADCube(CADPoint p1, CADPoint p2, CADPoint p3, CADPoint p4, CADPoint p5, CADPoint p6, CADPoint p7, CADPoint p8)
+            {
+                m_surfs[0] = new Rect3D(p1,p2,p3,p4);
+                m_surfs[1] = new Rect3D(p5, p6, p7, p8);
+                m_surfs[2] = new Rect3D(p1, p4, p8, p5);
+                m_surfs[3] = new Rect3D(p2, p3, p7, p6);
+                m_surfs[4] = new Rect3D(p1, p2, p6, p5);
+                m_surfs[5] = new Rect3D(p4, p3, p7, p8);
+                this.updateCenter();
+
+            }
+
             public CADCube Copy()
             {
                 CADCube result = new CADCube();
@@ -3282,7 +3333,8 @@ namespace CADCtrl
 
             public static CADCube operator +(CADCube cube, CADPoint arr)
             {
-                return new CADCube(cube.m_surfs[0] + arr, cube.m_surfs[1] + arr, cube.m_surfs[2] + arr, cube.m_surfs[3] + arr, cube.m_surfs[4] + arr, cube.m_surfs[5] + arr);
+                CADCube result = new CADCube(cube.m_surfs[0] + arr, cube.m_surfs[1] + arr, cube.m_surfs[2] + arr, cube.m_surfs[3] + arr, cube.m_surfs[4] + arr, cube.m_surfs[5] + arr);
+                return result;
             }
 
         }
@@ -3291,7 +3343,7 @@ namespace CADCtrl
         public class Triangle
         {
             public int m_id = 0;
-            public CADPoint[] m_points = new CADPoint[3];
+            public CADPoint[] m_points = { new CADPoint() ,new CADPoint(),new CADPoint()};
             public CADPoint m_center = new CADPoint();
             public Triangle()
             {
@@ -3335,7 +3387,8 @@ namespace CADCtrl
 
             public static Triangle operator +(Triangle tri, CADPoint arr)
             {
-                return new Triangle(tri.m_points[0] + arr, tri.m_points[1] + arr, tri.m_points[2] + arr);
+                Triangle result = new Triangle(tri.m_points[0] + arr, tri.m_points[1] + arr, tri.m_points[2] + arr);
+                return result;
             }
 
         }
@@ -3343,20 +3396,14 @@ namespace CADCtrl
 
         public class CADPrism
         {
-            public Triangle[] m_surfs_tri = null;
-            public Rect3D[] m_surfs_rect = null; 
+            public Triangle[] m_surfs_tri = { new Triangle(),new Triangle()};
+            public Rect3D[] m_surfs_rect = { new Rect3D(),new Rect3D(),new Rect3D()}; 
             public int m_id = 0;
             public int color = 0;
             public CADPoint m_center = new CADPoint();
 
             public CADPrism()
             {
-                m_surfs_tri = new Triangle[2];
-                for (int i = 0; i < 2; i++)
-                    m_surfs_tri[i] = new Triangle();
-                m_surfs_rect = new Rect3D[3];
-                for (int i = 0; i < 3; i++)
-                    m_surfs_rect[i] = new Rect3D();
             }
             public CADPrism(Triangle[] surfs_tri, Rect3D[] surfs_rect)
             {
@@ -3378,6 +3425,17 @@ namespace CADCtrl
                 this.updateCenter();
 
             }
+            public CADPrism(CADPoint p1, CADPoint p2, CADPoint p3, CADPoint p4, CADPoint p5, CADPoint p6 )
+            {
+                m_surfs_tri[0] = new Triangle(p1,p2,p3);
+                m_surfs_tri[1] = new Triangle(p4, p5, p6);
+                m_surfs_rect[0] = new Rect3D(p1,p2,p5,p4) ;
+                m_surfs_rect[1] = new Rect3D(p1, p3, p6, p4);
+                m_surfs_rect[2] = new Rect3D(p3, p2, p5, p6);
+                this.updateCenter();
+
+            }
+
             public CADPrism Copy()
             {
                 CADPrism result = new CADPrism();
@@ -3408,7 +3466,8 @@ namespace CADCtrl
 
             public static CADPrism operator +(CADPrism prism, CADPoint arr)
             {
-                return new CADPrism(prism.m_surfs_tri[0] + arr, prism.m_surfs_tri[1] + arr, prism.m_surfs_rect[0] + arr, prism.m_surfs_rect[1] + arr, prism.m_surfs_rect[2] + arr);
+                CADPrism result = new CADPrism(prism.m_surfs_tri[0] + arr, prism.m_surfs_tri[1] + arr, prism.m_surfs_rect[0] + arr, prism.m_surfs_rect[1] + arr, prism.m_surfs_rect[2] + arr);
+                return result;
             }
 
         }
@@ -3452,7 +3511,8 @@ namespace CADCtrl
 
             public static CADCylinder operator +(CADCylinder cylinder, CADPoint arr)
             {
-                return new CADCylinder(cylinder.m_surfs_cir[0] + arr, cylinder.m_surfs_cir[1] + arr);
+                CADCylinder result = new CADCylinder(cylinder.m_surfs_cir[0] + arr, cylinder.m_surfs_cir[1] + arr);
+                return result;
             }
 
 
@@ -3611,7 +3671,8 @@ namespace CADCtrl
 
             public static CADCircle operator +(CADCircle cir, CADPoint arr)
             {
-                return new CADCircle(cir.m_center+arr,cir.m_normal,cir.m_r);
+                CADCircle result = new CADCircle(cir.m_center + arr, cir.m_normal, cir.m_r);
+                return result;
             }
         }
 
