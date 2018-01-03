@@ -1663,8 +1663,8 @@ namespace CADCtrl
 
             CADPoint lenArr = cylinder.m_surfs_cir[1].m_center- cylinder.m_surfs_cir[0].m_center;
 
-            double sinalpha,singama;
-            double cosalpha, cosgama;
+            //double sinalpha,singama;
+            //double cosalpha, cosgama;
             double length = cylinder.m_surfs_cir[0].m_normal.getLen();
             if (length < 1e-5)
                 return;
@@ -1672,28 +1672,59 @@ namespace CADCtrl
             int devide = 60;
             double r1 = cylinder.m_surfs_cir[0].m_r;
             double r2 = cylinder.m_surfs_cir[1].m_r;
-            double diet_x = cylinder.m_surfs_cir[0].m_normal.m_x;
-            double diet_y = cylinder.m_surfs_cir[0].m_normal.m_y;
-            double diet_z = cylinder.m_surfs_cir[0].m_normal.m_z;
+            //double diet_x = cylinder.m_surfs_cir[0].m_normal.m_x;
+            //double diet_y = cylinder.m_surfs_cir[0].m_normal.m_y;
+            //double diet_z = cylinder.m_surfs_cir[0].m_normal.m_z;
 
-
-            if (Math.Abs(diet_x) <=1e-5)
+            //m_openGLCtrl.Rotate();
+            //m_openGLCtrl.GetFloat(OpenGL.GL_MODELVIEW,)
+            //if (Math.Abs(diet_x) <=1e-5)
 
             for (int i = 0; i < devide; i++)
             {
+                //p1 =cylinder.m_surfs_cir[0].m_center;
+                //p2 =cylinder.m_surfs_cir[0].m_center;
                 p1.m_x = r1 * Math.Cos(i * 360 / devide);
                 p1.m_y = r1 * Math.Sin(i * 360 / devide);
                 p2.m_x = r1 * Math.Cos((i +1)* 360 / devide);
                 p2.m_y = r1 * Math.Sin((i +1)* 360 / devide);
                 m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Quads);
-                CADPoint nor = cube.m_surfs[i].m_center - cube.m_center;
+                CADPoint nor = (p1+p2+p1+p2+ cylinder.m_surfs_cir[1].m_center- cylinder.m_surfs_cir[0].m_center)/4- cylinder.m_center;
+                //CADPoint c2_c1 = cylinder.m_surfs_cir[1].m_center + cylinder.m_surfs_cir[0].m_center;
                 m_openGLCtrl.Normal(nor.m_x, nor.m_y, nor.m_z);
-                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[0].m_x, cube.m_surfs[i].m_points[0].m_y, cube.m_surfs[i].m_points[0].m_z);
-                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[1].m_x, cube.m_surfs[i].m_points[1].m_y, cube.m_surfs[i].m_points[1].m_z);
-                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[2].m_x, cube.m_surfs[i].m_points[2].m_y, cube.m_surfs[i].m_points[2].m_z);
-                m_openGLCtrl.Vertex(cube.m_surfs[i].m_points[3].m_x, cube.m_surfs[i].m_points[3].m_y, cube.m_surfs[i].m_points[3].m_z);
+                m_openGLCtrl.Vertex(
+                    (p1 + cylinder.m_surfs_cir[0].m_center).m_x,
+                    (p1 + cylinder.m_surfs_cir[0].m_center).m_y,
+                    (p1 + cylinder.m_surfs_cir[0].m_center).m_z);
+                m_openGLCtrl.Vertex(
+                    (p2 + cylinder.m_surfs_cir[0].m_center).m_x,
+                    (p2 + cylinder.m_surfs_cir[0].m_center).m_y,
+                    (p2 + cylinder.m_surfs_cir[0].m_center).m_z);
+                m_openGLCtrl.Vertex(
+                    (p2 + cylinder.m_surfs_cir[1].m_center).m_x,
+                    (p2 + cylinder.m_surfs_cir[1].m_center).m_y,
+                    (p2 + cylinder.m_surfs_cir[1].m_center).m_z);
+                m_openGLCtrl.Vertex(
+                    (p1 + cylinder.m_surfs_cir[1].m_center).m_x,
+                    (p1 + cylinder.m_surfs_cir[1].m_center).m_y,
+                    (p1 + cylinder.m_surfs_cir[1].m_center).m_z);
                 m_openGLCtrl.End();
 
+                m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Triangles);
+                nor = cylinder.m_surfs_cir[0].m_center - cylinder.m_center;
+                m_openGLCtrl.Normal(nor.m_x, nor.m_y, nor.m_z);
+                m_openGLCtrl.Vertex((p1 + cylinder.m_surfs_cir[0].m_center).m_x, (p1 + cylinder.m_surfs_cir[0].m_center).m_y, (p1 + cylinder.m_surfs_cir[0].m_center).m_z);
+                m_openGLCtrl.Vertex((p2 + cylinder.m_surfs_cir[0].m_center).m_x, (p2 + cylinder.m_surfs_cir[0].m_center).m_y, (p2 + cylinder.m_surfs_cir[0].m_center).m_z);
+                m_openGLCtrl.Vertex(cylinder.m_surfs_cir[0].m_center.m_x, cylinder.m_surfs_cir[0].m_center.m_y, cylinder.m_surfs_cir[0].m_center.m_z);
+                m_openGLCtrl.End();
+
+                m_openGLCtrl.Begin(SharpGL.Enumerations.BeginMode.Triangles);
+                nor = cylinder.m_surfs_cir[1].m_center - cylinder.m_center;
+                m_openGLCtrl.Normal(nor.m_x, nor.m_y, nor.m_z);
+                m_openGLCtrl.Vertex((p1 + cylinder.m_surfs_cir[1].m_center).m_x, (p1 + cylinder.m_surfs_cir[1].m_center).m_y, (p1 + cylinder.m_surfs_cir[1].m_center).m_z);
+                m_openGLCtrl.Vertex((p2 + cylinder.m_surfs_cir[1].m_center).m_x, (p2 + cylinder.m_surfs_cir[1].m_center).m_y, (p2 + cylinder.m_surfs_cir[1].m_center).m_z);
+                m_openGLCtrl.Vertex(cylinder.m_surfs_cir[1].m_center.m_x, cylinder.m_surfs_cir[1].m_center.m_y, cylinder.m_surfs_cir[1].m_center.m_z);
+                m_openGLCtrl.End();
             }
             m_openGLCtrl.Flush();
         }
@@ -2118,7 +2149,7 @@ namespace CADCtrl
                 m_cube.m_surfs[5].m_points[3] = point8.Copy();
 
                 m_cube.updateCenter();
-                this.UserDrawCube(m_cube.Copy());
+                //this.UserDrawCube(m_cube.Copy());
 
 
                 m_cube = new CADCube();
@@ -2173,7 +2204,7 @@ namespace CADCtrl
 
                 m_cube.updateCenter();
 
-                this.UserDrawCube(m_cube.Copy());
+                //this.UserDrawCube(m_cube.Copy());
 
 
                 CADPrism m_prism = new CADPrism();
@@ -2222,7 +2253,7 @@ namespace CADCtrl
 
                 m_prism.updateCenter();
 
-                this.UserDrawPrism(m_prism.Copy());
+                //this.UserDrawPrism(m_prism.Copy());
 
                 m_prism = new CADPrism();
                 //m_cube.m_id = CubeNumber;
@@ -2270,7 +2301,24 @@ namespace CADCtrl
 
                 m_prism.updateCenter();
 
-                this.UserDrawPrism(m_prism.Copy());
+                //this.UserDrawPrism(m_prism.Copy());
+
+                //m_cube.m_id = CubeNumber;
+                //log.Info(string.Format("cube number = {0}", CubeNumber));
+                //CubeNumber++;
+                m_prism.color = 2;
+                point1 = new CADPoint(15, 15, 0);
+                point2 = new CADPoint(15, 15, -5);
+                point3 = new CADPoint(15, 15, 1);
+                point4 = new CADPoint(15, 15, -6);
+                CADCylinder cylinder = new CADCylinder();
+
+                cylinder.m_surfs_cir[0] = new CADCircle(point1,point3,1);
+                cylinder.m_surfs_cir[1] = new CADCircle(point2, point4, 1);
+                cylinder.updateCenter();
+
+                this.UserDrawCylinder(cylinder.Copy());
+
 
 
             }
@@ -3370,14 +3418,14 @@ namespace CADCtrl
         {
             public int m_id = 0;
             public int color = 0;
-            public CADPoint m_center = null;
-            public CADCircle[] m_surfs_cir = null;
+            public CADPoint m_center = new CADPoint();
+            public CADCircle[] m_surfs_cir = { new CADCircle(), new CADCircle() };
 
             public CADCylinder()
             {
-                m_center = new CADPoint();
-                m_surfs_cir[0] = new CADCircle();
-                m_surfs_cir[1] = new CADCircle();
+                //m_center = new CADPoint();
+                //m_surfs_cir[0] =;
+                //m_surfs_cir[1] = new CADCircle();
             }
 
             public CADCylinder(CADCircle c1, CADCircle c2)
@@ -3385,6 +3433,12 @@ namespace CADCtrl
                 m_surfs_cir[0] = c1.Copy();
                 m_surfs_cir[1] = c2.Copy();
                 m_center = (c1.m_center + c2.m_center) / 2;
+            }
+
+            public CADPoint updateCenter()
+            {
+                m_center = (m_surfs_cir[0].m_center + m_surfs_cir[1].m_center) / 2;
+                return m_center;
             }
 
             public CADCylinder Copy()
